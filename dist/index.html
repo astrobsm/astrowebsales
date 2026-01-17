@@ -3,17 +3,71 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="description" content="ASTROBSM Sales Platform - Bonnesante Medicals Wound Care Products" />
-    <meta name="theme-color" content="#287d4d" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e40af" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bonnesante" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="msapplication-TileColor" content="#1e40af" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/logo.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/logo.png" />
+    
+    <!-- Splash Screens for iOS -->
+    <link rel="apple-touch-startup-image" href="/logo.png" />
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
     <title>ASTROBSM Sales Platform | Bonnesante Medicals</title>
-    <script type="module" crossorigin src="/assets/index-h2tAYmAf.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BNAtb3UK.css">
+    <script type="module" crossorigin src="/assets/index-DZQrHGlx.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CbS1hwBQ.css">
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('Service Worker registered:', registration.scope);
+              
+              // Check for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New update available
+                    window.dispatchEvent(new CustomEvent('swUpdate', { detail: registration }));
+                  }
+                });
+              });
+            })
+            .catch((error) => {
+              console.error('Service Worker registration failed:', error);
+            });
+        });
+        
+        // Listen for SW messages
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'NEW_ORDER') {
+            window.dispatchEvent(new CustomEvent('newOrderNotification', { detail: event.data.order }));
+          }
+        });
+      }
+    </script>
   </body>
 </html>

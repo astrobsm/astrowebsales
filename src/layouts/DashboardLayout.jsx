@@ -1,24 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, X, Bell, LogOut, User, Settings, ChevronDown,
   LayoutDashboard, Package, ShoppingCart, Users, FileText, 
   TrendingUp, Truck, AlertTriangle, MessageSquare, History,
-  BarChart3, UserPlus, Building2, Shield, MessageCircle, BookOpen
+  BarChart3, UserPlus, Building2, Shield, MessageCircle, BookOpen,
+  Volume2, VolumeX, Play, Square, Gauge
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useFeedbackStore } from '../store/feedbackStore';
+import { usePWAStore } from '../store/pwaStore';
 
 const DashboardLayout = ({ role }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationDropdownOpen, setNotificationDropdownOpen] = useState(false);
+  const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { notifications, unreadCount, markAllAsRead } = useNotificationStore();
+  const { 
+    voiceEnabled, 
+    voiceVolume, 
+    voiceRate, 
+    setVoiceEnabled, 
+    setVoiceVolume, 
+    setVoiceRate,
+    announce,
+    stopAnnouncement 
+  } = usePWAStore();
 
   const handleLogout = () => {
     logout();
@@ -196,6 +209,113 @@ const DashboardLayout = ({ role }) => {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Voice Announcements Toggle */}
+              <div className="relative">
+                <button
+                  className={`relative p-2 rounded-lg transition-colors ${
+                    voiceEnabled 
+                      ? 'text-green-600 bg-green-50 hover:bg-green-100' 
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setVoiceSettingsOpen(!voiceSettingsOpen)}
+                  title={voiceEnabled ? 'Voice Announcements ON' : 'Voice Announcements OFF'}
+                >
+                  {voiceEnabled ? <Volume2 size={22} /> : <VolumeX size={22} />}
+                  {voiceEnabled && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                  )}
+                </button>
+
+                {/* Voice Settings Dropdown */}
+                {voiceSettingsOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border py-4 z-50">
+                    <div className="flex items-center justify-between px-4 pb-3 border-b">
+                      <h3 className="font-semibold text-gray-800">Voice Announcements</h3>
+                      <button
+                        onClick={() => setVoiceSettingsOpen(false)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                    
+                    <div className="p-4 space-y-4">
+                      {/* Enable/Disable Toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Enable Announcements</span>
+                        <button
+                          onClick={() => setVoiceEnabled(!voiceEnabled)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            voiceEnabled ? 'bg-green-500' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                              voiceEnabled ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Volume Slider */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">Volume</span>
+                          <span className="text-xs text-gray-500">{Math.round(voiceVolume * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={voiceVolume}
+                          onChange={(e) => setVoiceVolume(parseFloat(e.target.value))}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                        />
+                      </div>
+
+                      {/* Speed Slider */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">Speed</span>
+                          <span className="text-xs text-gray-500">{voiceRate.toFixed(1)}x</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="2"
+                          step="0.1"
+                          value={voiceRate}
+                          onChange={(e) => setVoiceRate(parseFloat(e.target.value))}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                        />
+                      </div>
+
+                      {/* Test Buttons */}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => announce('This is a test announcement from Bonnesante Medicals. Voice announcements are working correctly.')}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+                        >
+                          <Play size={16} />
+                          Test Voice
+                        </button>
+                        <button
+                          onClick={() => stopAnnouncement()}
+                          className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+                        >
+                          <Square size={16} />
+                        </button>
+                      </div>
+
+                      <p className="text-xs text-gray-500 pt-2 border-t">
+                        Voice announcements notify staff when new orders are placed.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Notifications */}
               <div className="relative">
                 <button

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
 import { useSyncStore } from './syncStore';
+import { usePWAStore } from './pwaStore';
 import { v4 as uuidv4 } from 'uuid';
 
 // Order Statuses
@@ -85,6 +86,20 @@ export const useOrderStore = create(
             action: 'create', 
             order: newOrder 
           });
+          
+          // Trigger voice announcement and notification for staff
+          try {
+            const pwaStore = usePWAStore.getState();
+            pwaStore.announceOrder(newOrder);
+            pwaStore.showNotification('New Order Received!', {
+              body: `Order ${orderNumber} from ${orderData.customerName || 'Customer'} - ₦${orderData.total?.toLocaleString() || '0'}`,
+              tag: `order-${newOrder.id}`,
+              requireInteraction: true,
+              data: { orderId: newOrder.id, type: 'new_order' }
+            });
+          } catch (e) {
+            console.log('Voice/notification error:', e);
+          }
           
           return newOrder;
         },

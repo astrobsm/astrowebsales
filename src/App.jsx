@@ -6,6 +6,9 @@ import { useSyncStore } from './store/syncStore';
 import PublicLayout from './layouts/PublicLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 
+// PWA Components
+import InstallPrompt from './components/shared/InstallPrompt';
+
 // Public Pages
 import Home from './pages/public/Home';
 import About from './pages/public/About';
@@ -72,6 +75,9 @@ function App() {
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
+      
       <Routes>
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
