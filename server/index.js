@@ -18,7 +18,9 @@ const PORT = process.env.PORT || 5000;
 // Socket.io for real-time cross-device sync
 const io = new SocketServer(httpServer, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3009', 'https://astrowebsales.vercel.app'],
+    origin: process.env.NODE_ENV === 'production'
+      ? true  // Allow all origins in production
+      : ['http://localhost:3000', 'http://localhost:3009', 'https://astrowebsales.vercel.app'],
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -99,12 +101,18 @@ io.on('connection', (socket) => {
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3009', 'https://astrowebsales.vercel.app'],
+  origin: process.env.NODE_ENV === 'production' 
+    ? true  // Allow all origins in production (same server)
+    : ['http://localhost:3000', 'http://localhost:3009', 'https://astrowebsales.vercel.app'],
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve static frontend files in production
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -573,6 +581,16 @@ app.get('/api/status', async (req, res) => {
 app.get('/api/status/db', async (req, res) => {
   const testResult = await testConnection();
   res.json(testResult);
+});
+
+// ==================== SPA FALLBACK ====================
+// Serve index.html for all non-API routes (SPA routing)
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
 });
 
 startServer();

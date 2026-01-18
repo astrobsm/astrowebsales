@@ -1,5 +1,5 @@
 // API Service Layer for connecting to the Express backend
-// Uses Vercel Serverless Functions in production
+// Uses relative URLs in production (served from same server)
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
 
