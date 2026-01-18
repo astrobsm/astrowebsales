@@ -106,7 +106,7 @@ const Seminars = () => {
                           {seminar.level}
                         </span>
                         {seminar.cpdPoints && (
-                          <span className="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center">
+                          <span className="inline-flex px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium items-center">
                             <Award className="w-3 h-3 mr-1" />
                             {seminar.cpdPoints} CPD Points
                           </span>

@@ -1,18 +1,107 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pool, { initializeDatabase } from './database.js';
+import { createServer } from 'http';
+import { Server as SocketServer } from 'socket.io';
+import pool, { initializeDatabase, testConnection, getConnectionStatus } from './database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
 
+// Socket.io for real-time cross-device sync
+const io = new SocketServer(httpServer, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://localhost:3009', 'https://astrowebsales.vercel.app'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Track connected clients for sync
+const connectedClients = new Map();
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`🔌 Client connected: ${socket.id}`);
+  
+  // Register device for sync
+  socket.on('register-device', (deviceId) => {
+    connectedClients.set(socket.id, { deviceId, socket });
+    console.log(`📱 Device registered: ${deviceId}`);
+    
+    // Notify client of successful connection
+    socket.emit('sync-connected', { 
+      deviceId, 
+      connectedDevices: connectedClients.size,
+      timestamp: Date.now() 
+    });
+    
+    // Broadcast to other clients that a new device connected
+    socket.broadcast.emit('device-joined', { deviceId, timestamp: Date.now() });
+  });
+  
+  // Handle state sync requests
+  socket.on('sync-state', (data) => {
+    const { store, action, payload, deviceId } = data;
+    console.log(`🔄 Sync event: ${store}.${action} from ${deviceId}`);
+    
+    // Broadcast to all other connected clients
+    socket.broadcast.emit('state-update', {
+      store,
+      action,
+      payload,
+      sourceDeviceId: deviceId,
+      timestamp: Date.now()
+    });
+  });
+  
+  // Handle full state sync request
+  socket.on('request-full-sync', (deviceId) => {
+    console.log(`📥 Full sync requested by: ${deviceId}`);
+    socket.broadcast.emit('provide-full-sync', { requestingDeviceId: deviceId });
+  });
+  
+  // Handle full state response
+  socket.on('full-sync-response', (data) => {
+    const { targetDeviceId, state } = data;
+    // Find the socket of the requesting device
+    for (const [socketId, client] of connectedClients.entries()) {
+      if (client.deviceId === targetDeviceId) {
+        io.to(socketId).emit('receive-full-sync', state);
+        break;
+      }
+    }
+  });
+  
+  // Handle order notifications
+  socket.on('new-order', (orderData) => {
+    console.log(`📦 New order notification: ${orderData.orderNumber}`);
+    io.emit('order-notification', orderData);
+  });
+  
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    const client = connectedClients.get(socket.id);
+    if (client) {
+      console.log(`📴 Device disconnected: ${client.deviceId}`);
+      socket.broadcast.emit('device-left', { deviceId: client.deviceId });
+    }
+    connectedClients.delete(socket.id);
+  });
+});
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3009', 'https://astrowebsales.vercel.app'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -432,17 +521,60 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // Initialize database and start server
-initializeDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
+const startServer = async () => {
+  try {
+    // Test database connection first
+    console.log('🔄 Testing database connection...');
+    const connectionResult = await testConnection();
+    
+    if (connectionResult.success) {
+      console.log('✅ Database connection verified');
+      
+      // Initialize tables
+      await initializeDatabase();
+      console.log('✅ Database tables ready');
+    } else {
+      console.warn('⚠️ Database connection failed, running in offline mode');
+      console.warn('   Error:', connectionResult.error);
+    }
+    
+    httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📦 Database: astrowebsale_db`);
-      console.log(`🔑 Password: blackvelvet`);
+      console.log(`🔌 WebSocket server ready for real-time sync`);
+      console.log(`📊 Database: ${connectionResult.success ? 'Connected' : 'Offline Mode'}`);
     });
-  })
-  .catch((error) => {
-    console.error('Failed to initialize database:', error);
-    process.exit(1);
+  } catch (error) {
+    console.error('❌ Server startup error:', error);
+    // Start server anyway in offline mode
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Server running in OFFLINE mode on http://localhost:${PORT}`);
+    });
+  }
+};
+
+// ==================== DATABASE STATUS API ====================
+
+app.get('/api/status', async (req, res) => {
+  const connectionStatus = getConnectionStatus();
+  const testResult = await testConnection();
+  
+  res.json({
+    server: 'online',
+    database: testResult.success ? 'connected' : 'disconnected',
+    databaseHost: connectionStatus.host,
+    databaseName: connectionStatus.database,
+    error: testResult.error || null,
+    timestamp: testResult.timestamp || null,
+    connectedClients: connectedClients.size,
+    uptime: process.uptime()
   });
+});
+
+app.get('/api/status/db', async (req, res) => {
+  const testResult = await testConnection();
+  res.json(testResult);
+});
+
+startServer();
 
 export default app;

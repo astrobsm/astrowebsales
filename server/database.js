@@ -1,24 +1,74 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-// PostgreSQL connection configuration
+// PostgreSQL connection configuration for DigitalOcean
+// All credentials should be set via environment variables
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'astrowebsale_db',
-  password: 'blackvelvet',
-  port: 5432,
+  user: process.env.DB_USER || 'doadmin',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'astrobsm',
+  password: process.env.DB_PASSWORD,
+  port: parseInt(process.env.DB_PORT) || 5432,
+  ssl: process.env.DB_SSL === 'true' ? {
+    rejectUnauthorized: false // Required for DigitalOcean managed databases
+  } : false,
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 30000,
+  statement_timeout: 30000,
 });
+
+// Note: Set these environment variables for production:
+// DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, DB_SSL=true
+
+// Database connection state
+let isConnected = false;
+let connectionError = null;
 
 // Test database connection
 pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
+  isConnected = true;
+  connectionError = null;
+  console.log('✅ Connected to DigitalOcean PostgreSQL database');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Unexpected error on idle client', err);
-  process.exit(-1);
+  isConnected = false;
+  connectionError = err.message;
+  console.error('❌ Database connection error:', err.message);
 });
+
+// Get connection status
+export const getConnectionStatus = () => ({
+  isConnected,
+  error: connectionError,
+  host: pool.options.host,
+  database: pool.options.database
+});
+
+// Test connection function
+export const testConnection = async () => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT NOW() as current_time');
+    client.release();
+    isConnected = true;
+    connectionError = null;
+    return { 
+      success: true, 
+      timestamp: result.rows[0].current_time,
+      message: 'Database connection successful'
+    };
+  } catch (error) {
+    isConnected = false;
+    connectionError = error.message;
+    return { 
+      success: false, 
+      error: error.message,
+      message: 'Database connection failed'
+    };
+  }
+};
 
 // Initialize database tables
 export const initializeDatabase = async () => {
@@ -226,15 +276,39 @@ export const initializeDatabase = async () => {
       )
     `);
 
-    // Create indexes for better performance
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-      CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
-      CREATE INDEX IF NOT EXISTS idx_articles_category ON articles(category);
-      CREATE INDEX IF NOT EXISTS idx_seminars_date ON seminars(date);
-      CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-      CREATE INDEX IF NOT EXISTS idx_orders_number ON orders(order_number);
-    `);
+    // Create indexes for better performance (with IF NOT EXISTS and error handling)
+    const createIndexes = async () => {
+      const indexes = [
+        'CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku)',
+        'CREATE INDEX IF NOT EXISTS idx_seminars_date ON seminars(date)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_number ON orders(order_number)'
+      ];
+      
+      // Try to create optional indexes that depend on columns that may not exist
+      const optionalIndexes = [
+        'CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)',
+        'CREATE INDEX IF NOT EXISTS idx_articles_category ON articles(category)'
+      ];
+      
+      for (const sql of indexes) {
+        try {
+          await client.query(sql);
+        } catch (e) {
+          console.log(`Note: Could not create index: ${e.message}`);
+        }
+      }
+      
+      for (const sql of optionalIndexes) {
+        try {
+          await client.query(sql);
+        } catch (e) {
+          // Silently ignore - column may not exist
+        }
+      }
+    };
+    
+    await createIndexes();
 
     await client.query('COMMIT');
     console.log('✅ Database tables initialized successfully');

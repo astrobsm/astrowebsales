@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 const RetailCheckout = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const { items, getCartTotal, clearCart } = useCartStore();
+  const { items, getCartTotal, clearCart, recalculateCart } = useCartStore();
   const { createOrder } = useOrderStore();
   const { notifyNewOrder } = useNotificationStore();
 
@@ -25,6 +25,13 @@ const RetailCheckout = () => {
       navigate('/shop');
     }
   }, [isAuthenticated, items, navigate]);
+
+  // Recalculate cart on mount to ensure correct pricing
+  React.useEffect(() => {
+    if (items.length > 0) {
+      recalculateCart();
+    }
+  }, []);
 
   const subtotal = getCartTotal();
   const urgencyCharge = urgency === 'urgent' ? 500 : 0;

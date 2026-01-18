@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 const RetailCart = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const { items, updateItemQuantity, removeItem, getCartTotal, clearCart } = useCartStore();
+  const { items, updateItemQuantity, removeItem, getCartTotal, clearCart, recalculateCart } = useCartStore();
   const { getProductById } = useProductStore();
 
   React.useEffect(() => {
@@ -19,14 +19,26 @@ const RetailCart = () => {
     }
   }, [isAuthenticated, navigate]);
 
+  // Recalculate cart totals on mount to fix any cached items with 0 prices
+  React.useEffect(() => {
+    if (items.length > 0) {
+      recalculateCart();
+    }
+  }, []); // Only run on mount
+
   const handleUpdateQuantity = (itemId, productId, newQty) => {
     const product = getProductById(productId);
-    if (product && newQty >= product.minOrderQty && newQty <= product.maxOrderQty) {
-      updateItemQuantity(itemId, newQty);
-    } else if (newQty < product.minOrderQty) {
-      toast.error(`Minimum order quantity is ${product.minOrderQty}`);
+    if (!product) return;
+    
+    const minQty = product.minOrderQty || 1;
+    const maxQty = product.maxOrderQty || 999;
+    
+    if (newQty < minQty) {
+      toast.error(`Minimum order quantity is ${minQty}`);
+    } else if (newQty > maxQty) {
+      toast.error(`Maximum order quantity is ${maxQty}`);
     } else {
-      toast.error(`Maximum order quantity is ${product.maxOrderQty}`);
+      updateItemQuantity(itemId, newQty);
     }
   };
 
@@ -140,7 +152,7 @@ const RetailCart = () => {
 
                         {product && (
                           <span className="text-xs text-gray-500">
-                            Max: {product.maxOrderQty}
+                            Max: {product.maxOrderQty || 999}
                           </span>
                         )}
                       </div>

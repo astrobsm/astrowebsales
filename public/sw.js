@@ -101,9 +101,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For API requests, network only
+  // For API requests, network only with error handling
   if (url.pathname.startsWith('/api')) {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      fetch(request).catch((error) => {
+        console.log('API request failed, returning offline response:', error.message);
+        return new Response(
+          JSON.stringify({ error: 'offline', message: 'Server not available' }),
+          { 
+            status: 503, 
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      })
+    );
     return;
   }
 

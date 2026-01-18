@@ -55,7 +55,9 @@ const RetailProducts = () => {
     const cartItem = getCartItem(product.id);
     if (cartItem) {
       const newQty = cartItem.quantity + change;
-      if (newQty > 0 && newQty <= product.maxOrderQty) {
+      const minQty = product.minOrderQty || 1;
+      const maxQty = product.maxOrderQty || 999;
+      if (newQty >= minQty && newQty <= maxQty) {
         updateItemQuantity(cartItem.id, newQty);
       }
     }

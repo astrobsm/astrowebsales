@@ -11,6 +11,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useFeedbackStore } from '../../store/feedbackStore';
 import { useContentStore } from '../../store/contentStore';
 import { downloadTemplate, parseCSV, validateData } from '../../components/shared/BulkUpload';
+import DatabaseStatusIndicator from '../../components/shared/DatabaseStatusIndicator';
 import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
 import { 
@@ -36,9 +37,12 @@ const AdminDashboard = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {user?.name}</p>
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+          <p className="text-gray-600">Welcome back, {user?.name}</p>
+        </div>
+        <DatabaseStatusIndicator />
       </div>
 
       {/* Stats Grid */}
@@ -62,41 +66,51 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      {/* Recent Orders */}
-      <div className="card p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Orders</h2>
-          <Link to="/admin/orders" className="text-primary-600 hover:text-primary-700 font-medium">
-            View All →
-          </Link>
+      {/* System Status Card */}
+      <div className="grid lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2">
+          {/* Recent Orders */}
+          <div className="card p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Recent Orders</h2>
+              <Link to="/admin/orders" className="text-primary-600 hover:text-primary-700 font-medium">
+                View All →
+              </Link>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 text-sm font-semibold text-gray-700">Order #</th>
+                    <th className="text-left py-3 text-sm font-semibold text-gray-700">Customer</th>
+                    <th className="text-left py-3 text-sm font-semibold text-gray-700">Status</th>
+                    <th className="text-left py-3 text-sm font-semibold text-gray-700">Amount</th>
+                    <th className="text-left py-3 text-sm font-semibold text-gray-700">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentOrders.map((order) => (
+                    <tr key={order.id} className="border-b last:border-0">
+                      <td className="py-3 text-sm font-medium">{order.orderNumber}</td>
+                      <td className="py-3 text-sm">{order.customerName}</td>
+                      <td className="py-3">
+                        <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-sm font-medium">₦{order.totalAmount.toLocaleString()}</td>
+                      <td className="py-3 text-sm text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 text-sm font-semibold text-gray-700">Order #</th>
-                <th className="text-left py-3 text-sm font-semibold text-gray-700">Customer</th>
-                <th className="text-left py-3 text-sm font-semibold text-gray-700">Status</th>
-                <th className="text-left py-3 text-sm font-semibold text-gray-700">Amount</th>
-                <th className="text-left py-3 text-sm font-semibold text-gray-700">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map((order) => (
-                <tr key={order.id} className="border-b last:border-0">
-                  <td className="py-3 text-sm font-medium">{order.orderNumber}</td>
-                  <td className="py-3 text-sm">{order.customerName}</td>
-                  <td className="py-3">
-                    <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="py-3 text-sm font-medium">₦{order.totalAmount.toLocaleString()}</td>
-                  <td className="py-3 text-sm text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        
+        {/* System Status Panel */}
+        <div className="lg:col-span-1">
+          <DatabaseStatusIndicator expanded={true} />
         </div>
       </div>
     </div>
@@ -1112,8 +1126,8 @@ export const AdminOrders = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 20;
 
-    // Add company logo
-    const logoImg = new Image();
+    // Add company logo - use window.Image to avoid conflict with Lucide's Image component
+    const logoImg = new window.Image();
     logoImg.src = '/logo.png';
     
     // Create the PDF with logo
@@ -1195,8 +1209,9 @@ export const AdminOrders = () => {
       doc.setTextColor(255, 255, 255);
       doc.rect(15, y - 4, pageWidth - 30, 8, 'F');
       doc.text('Item', 20, y);
-      doc.text('Qty', 100, y);
-      doc.text('Price', 130, y);
+      doc.text('Unit', 90, y);
+      doc.text('Qty', 115, y);
+      doc.text('Price', 135, y);
       doc.text('Total', 165, y);
       y += 8;
       doc.setTextColor(0, 0, 0);
@@ -1206,9 +1221,10 @@ export const AdminOrders = () => {
       if (order.items && order.items.length > 0) {
         order.items.forEach((item) => {
           const itemTotal = (item.quantity * item.price) || 0;
-          doc.text(item.name?.substring(0, 35) || 'Item', 20, y);
-          doc.text(String(item.quantity || 0), 100, y);
-          doc.text(`N${(item.price || 0).toLocaleString()}`, 130, y);
+          doc.text(item.name?.substring(0, 30) || 'Item', 20, y);
+          doc.text(item.unit || 'Pcs', 90, y);
+          doc.text(String(item.quantity || 0), 115, y);
+          doc.text(`N${(item.price || 0).toLocaleString()}`, 135, y);
           doc.text(`N${itemTotal.toLocaleString()}`, 165, y);
           y += 7;
         });

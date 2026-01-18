@@ -18,7 +18,18 @@ export const useCartStore = create(
         // Add item to cart
         addItem: (product, quantity = 1) => {
           const { items, userType } = get();
-          const price = useProductStore.getState().getPriceForUserType(product.id, userType);
+          // Get price from product store, or fallback to product's own price
+          let price = useProductStore.getState().getPriceForUserType(product.id, userType);
+          
+          // Fallback to product's direct price if getPriceForUserType returns 0
+          if (!price && product.prices) {
+            price = userType === 'distributor' ? product.prices.distributor : product.prices.retail;
+          }
+          // Final fallback to retail price if available
+          if (!price) {
+            price = product.price || product.prices?.retail || 0;
+          }
+          
           const maxQty = product.maxOrderQty || 999;
           
           const existingItemIndex = items.findIndex(item => item.productId === product.id);
@@ -69,10 +80,20 @@ export const useCartStore = create(
                 Math.min(quantity, product?.maxOrderQty || 999)
               );
               
+              // Use stored price, or recalculate if it's 0
+              let price = item.price;
+              if (!price && product) {
+                price = useProductStore.getState().getPriceForUserType(item.productId, userType);
+                if (!price && product.prices) {
+                  price = userType === 'distributor' ? product.prices.distributor : product.prices.retail;
+                }
+              }
+              
               return {
                 ...item,
                 quantity: validQty,
-                subtotal: validQty * item.price
+                price: price || item.price,
+                subtotal: validQty * (price || item.price || 0)
               };
             })
           });
@@ -95,9 +116,34 @@ export const useCartStore = create(
           useSyncStore.getState().notifyStateChange('cart', { action: 'clear' });
         },
         
+        // Recalculate all cart totals (useful for fixing cached items with 0 prices)
+        recalculateCart: () => {
+          const { items, userType } = get();
+          
+          set({
+            items: items.map(item => {
+              const product = useProductStore.getState().getProductById(item.productId);
+              
+              // Recalculate price
+              let price = useProductStore.getState().getPriceForUserType(item.productId, userType);
+              if (!price && product?.prices) {
+                price = userType === 'distributor' ? product.prices.distributor : product.prices.retail;
+              }
+              // Keep original price if still no price found
+              price = price || item.price || 0;
+              
+              return {
+                ...item,
+                price,
+                subtotal: item.quantity * price
+              };
+            })
+          });
+        },
+        
         // Get cart total
         getCartTotal: () => {
-          return get().items.reduce((total, item) => total + item.subtotal, 0);
+          return get().items.reduce((total, item) => total + (item.subtotal || 0), 0);
         },
         
         // Get cart item count
