@@ -1,7 +1,9 @@
 // WebSocket Sync Service for real-time cross-device synchronization
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+// In production, set VITE_SOCKET_URL to your deployed backend URL
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (import.meta.env.PROD ? 'https://astrowebsales-api.up.railway.app' : 'http://localhost:5000');
 
 class SyncService {
   constructor() {
