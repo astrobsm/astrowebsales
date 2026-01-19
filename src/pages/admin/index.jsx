@@ -103,8 +103,8 @@ const AdminDashboard = () => {
                           {order.status}
                         </span>
                       </td>
-                      <td className="py-3 text-sm font-medium">₦{order.totalAmount.toLocaleString()}</td>
-                      <td className="py-3 text-sm text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>
+                      <td className="py-3 text-sm font-medium">₦{(order.total || order.totalAmount || 0).toLocaleString()}</td>
+                      <td className="py-3 text-sm text-gray-600">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
