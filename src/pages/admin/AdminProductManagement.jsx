@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Upload, X, Save, Image } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Upload, X, Save, Image, Star, StarOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProductStore } from '../../store/productStore';
+import { apiService } from '../../services/api';
 
 const AdminProductManagement = () => {
   const { products, categories, addProduct, updateProduct, deleteProduct } = useProductStore();
@@ -30,8 +31,11 @@ const AdminProductManagement = () => {
       sterile: false,
       packSize: ''
     },
-    image: null
+    image: null,
+    isFeatured: false,
+    unit: 'Piece'
   });
+  const [isUploading, setIsUploading] = useState(false);
 
   const resetForm = () => {
     setFormData({
@@ -44,7 +48,9 @@ const AdminProductManagement = () => {
       stock: '',
       minOrder: 1,
       specifications: { size: '', material: '', sterile: false, packSize: '' },
-      image: null
+      image: null,
+      isFeatured: false,
+      unit: 'Piece'
     });
     setImagePreview(null);
     setEditingProduct(null);
@@ -63,7 +69,9 @@ const AdminProductManagement = () => {
         stock: product.stock,
         minOrder: product.minOrder || 1,
         specifications: { ...product.specifications },
-        image: null
+        image: null,
+        isFeatured: product.isFeatured || false,
+        unit: product.unit || 'Piece'
       });
       setImagePreview(product.image || null);
     } else {
@@ -100,15 +108,53 @@ const AdminProductManagement = () => {
     }
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({ ...prev, image: file }));
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+      
+      // Show preview immediately
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
+      
+      // Upload to server
+      setIsUploading(true);
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append('image', file);
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setFormData(prev => ({ ...prev, image: data.url }));
+          toast.success('Image uploaded successfully!');
+        } else {
+          // Fallback to base64 if server upload fails
+          setFormData(prev => ({ ...prev, image: reader.result }));
+          console.log('Server upload failed, using base64');
+        }
+      } catch (error) {
+        // Fallback to base64
+        const base64Reader = new FileReader();
+        base64Reader.onloadend = () => {
+          setFormData(prev => ({ ...prev, image: base64Reader.result }));
+        };
+        base64Reader.readAsDataURL(file);
+        console.log('Using base64 fallback:', error);
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -123,7 +169,9 @@ const AdminProductManagement = () => {
         wholesaler: parseFloat(formData.prices.wholesaler) || 0
       },
       stock: parseInt(formData.stock) || 0,
-      image: imagePreview
+      image: formData.image || imagePreview,
+      isFeatured: formData.isFeatured,
+      unit: formData.unit
     };
 
     try {
@@ -137,6 +185,14 @@ const AdminProductManagement = () => {
       handleCloseModal();
     } catch (error) {
       toast.error('Failed to save product');
+    }
+  };
+
+  const toggleFeatured = (productId) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      updateProduct(productId, { isFeatured: !product.isFeatured });
+      toast.success(product.isFeatured ? 'Removed from slideshow' : 'Added to slideshow!');
     }
   };
 
@@ -193,7 +249,13 @@ const AdminProductManagement = () => {
       {/* Products Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredProducts.map((product) => (
-          <div key={product.id} className="card p-4 hover:shadow-lg transition-shadow">
+          <div key={product.id} className="card p-4 hover:shadow-lg transition-shadow relative">
+            {product.isFeatured && (
+              <div className="absolute top-2 right-2 z-10 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
+                <Star size={12} className="mr-1 fill-current" />
+                Featured
+              </div>
+            )}
             <div className="aspect-square bg-gray-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
               {product.image ? (
                 <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
@@ -217,6 +279,17 @@ const AdminProductManagement = () => {
               </span>
             </div>
             <div className="flex gap-2">
+              <button 
+                onClick={() => toggleFeatured(product.id)}
+                className={`px-3 py-2 rounded-lg transition-colors ${
+                  product.isFeatured 
+                    ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200' 
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                }`}
+                title={product.isFeatured ? 'Remove from slideshow' : 'Add to slideshow'}
+              >
+                {product.isFeatured ? <Star size={16} className="fill-current" /> : <StarOff size={16} />}
+              </button>
               <button 
                 onClick={() => handleOpenModal(product)}
                 className="flex-1 btn-secondary text-sm flex items-center justify-center"
@@ -260,27 +333,49 @@ const AdminProductManagement = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
                 <div className="flex items-start gap-4">
-                  <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                  <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative">
                     {imagePreview ? (
                       <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <Image size={32} className="text-gray-300" />
+                    )}
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
                     )}
                   </div>
                   <div className="flex-1">
                     <label className="cursor-pointer">
                       <span className="btn-secondary inline-flex items-center">
                         <Upload size={18} className="mr-2" />
-                        Upload Image
+                        {isUploading ? 'Uploading...' : 'Upload Image'}
                       </span>
                       <input
                         type="file"
                         accept="image/*"
                         onChange={handleImageChange}
                         className="hidden"
+                        disabled={isUploading}
                       />
                     </label>
                     <p className="text-sm text-gray-500 mt-2">JPG, PNG or GIF. Max 5MB.</p>
+                    
+                    {/* Featured in Slideshow */}
+                    <div className="flex items-center mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <input
+                        type="checkbox"
+                        name="isFeatured"
+                        checked={formData.isFeatured}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isFeatured: e.target.checked }))}
+                        id="isFeatured"
+                        className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                      />
+                      <label htmlFor="isFeatured" className="ml-2 text-sm font-medium text-yellow-800 flex items-center">
+                        <Star size={16} className="mr-1 text-yellow-600" />
+                        Feature in Homepage Slideshow
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>

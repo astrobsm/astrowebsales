@@ -141,6 +141,57 @@ const upload = multer({
   }
 });
 
+// ==================== IMAGE UPLOAD API ====================
+
+// Single image upload endpoint
+app.post('/api/upload', upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+    
+    const imageUrl = `/uploads/${req.file.filename}`;
+    console.log(`📸 Image uploaded: ${imageUrl}`);
+    
+    res.json({ 
+      success: true,
+      url: imageUrl,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size
+    });
+  } catch (error) {
+    console.error('Image upload error:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
+// Multiple images upload endpoint
+app.post('/api/upload/multiple', upload.array('images', 10), (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No images provided' });
+    }
+    
+    const uploadedImages = req.files.map(file => ({
+      url: `/uploads/${file.filename}`,
+      filename: file.filename,
+      originalName: file.originalname,
+      size: file.size
+    }));
+    
+    console.log(`📸 ${uploadedImages.length} images uploaded`);
+    
+    res.json({ 
+      success: true,
+      images: uploadedImages
+    });
+  } catch (error) {
+    console.error('Multiple image upload error:', error);
+    res.status(500).json({ error: 'Failed to upload images' });
+  }
+});
+
 // ==================== PRODUCTS API ====================
 
 // Get all products
