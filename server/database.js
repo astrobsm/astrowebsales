@@ -105,32 +105,32 @@ export const initializeDatabase = async () => {
     `);
     
     // Add new columns if they don't exist (for existing tables)
-    await client.query(`
-      DO $$ 
-      BEGIN 
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_data') THEN
-          ALTER TABLE products ADD COLUMN product_data JSONB;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='indications') THEN
-          ALTER TABLE products ADD COLUMN indications TEXT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='is_featured') THEN
-          ALTER TABLE products ADD COLUMN is_featured BOOLEAN DEFAULT false;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='unit') THEN
-          ALTER TABLE products ADD COLUMN unit VARCHAR(50) DEFAULT 'Piece';
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='units_per_carton') THEN
-          ALTER TABLE products ADD COLUMN units_per_carton INTEGER DEFAULT 1;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='min_order_qty') THEN
-          ALTER TABLE products ADD COLUMN min_order_qty INTEGER DEFAULT 1;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='active') THEN
-          ALTER TABLE products ADD COLUMN active BOOLEAN DEFAULT true;
-        END IF;
-      END $$;
-    `);
+    // Run each column addition separately to avoid transaction issues
+    const columnsToAdd = [
+      { name: 'product_data', type: 'JSONB' },
+      { name: 'indications', type: 'TEXT' },
+      { name: 'is_featured', type: 'BOOLEAN DEFAULT false' },
+      { name: 'unit', type: 'VARCHAR(50) DEFAULT \'Piece\'' },
+      { name: 'units_per_carton', type: 'INTEGER DEFAULT 1' },
+      { name: 'min_order_qty', type: 'INTEGER DEFAULT 1' },
+      { name: 'active', type: 'BOOLEAN DEFAULT true' },
+      { name: 'sku', type: 'VARCHAR(100)' }
+    ];
+    
+    for (const col of columnsToAdd) {
+      try {
+        await client.query(`
+          DO $$ 
+          BEGIN 
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='${col.name}') THEN
+              ALTER TABLE products ADD COLUMN ${col.name} ${col.type};
+            END IF;
+          END $$;
+        `);
+      } catch (colErr) {
+        console.log(`Note: Could not add column ${col.name}:`, colErr.message);
+      }
+    }
     
     // Drop unique constraint on SKU if it exists (allow duplicates for now)
     try {

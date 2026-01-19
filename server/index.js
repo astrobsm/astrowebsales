@@ -198,7 +198,8 @@ app.post('/api/upload/multiple', upload.array('images', 10), (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const { category, search } = req.query;
-    let query = 'SELECT * FROM products WHERE active = true';
+    // Use COALESCE to handle cases where active column might not exist or be NULL
+    let query = 'SELECT * FROM products WHERE COALESCE(active, true) = true';
     const params = [];
 
     if (category) {
