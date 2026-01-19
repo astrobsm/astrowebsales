@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, Package, ShoppingCart, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
 import { useOrderStore } from '../../store/orderStore';
@@ -7,8 +7,19 @@ import { useAuthStore } from '../../store/authStore';
 
 const AdminDashboard = () => {
   const { user } = useAuthStore();
-  const { orders, getOrderStats } = useOrderStore();
-  const { products } = useProductStore();
+  const { orders, getOrderStats, fetchOrders } = useOrderStore();
+  const { products, fetchProducts } = useProductStore();
+
+  // Fetch fresh data from database on mount and periodically
+  useEffect(() => {
+    fetchOrders();
+    fetchProducts();
+    const interval = setInterval(() => {
+      fetchOrders();
+      fetchProducts();
+    }, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchOrders, fetchProducts]);
 
   const stats = getOrderStats();
   const recentOrders = orders.slice(0, 5);

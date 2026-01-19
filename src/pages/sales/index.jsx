@@ -1,27 +1,51 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ShoppingCart, DollarSign, Package, Users, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { useOrderStore } from '../../store/orderStore';
+import { useProductStore } from '../../store/productStore';
 
 export const SalesDashboard = () => {
+  const { orders, fetchOrders } = useOrderStore();
+  const { products, fetchProducts } = useProductStore();
+  
+  // Fetch fresh data on mount and periodically
+  useEffect(() => {
+    fetchOrders();
+    fetchProducts();
+    const interval = setInterval(() => {
+      fetchOrders();
+      fetchProducts();
+    }, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchOrders, fetchProducts]);
+  
+  // Calculate real stats from orders
+  const today = new Date().toDateString();
+  const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === today);
+  const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  const totalProducts = products.length;
+  const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
+  
   const stats = [
-    { label: 'Orders Today', value: 8, change: '+3', icon: ShoppingCart, color: 'bg-blue-100 text-blue-600' },
-    { label: 'Revenue Today', value: '₦485,000', change: '+12%', icon: DollarSign, color: 'bg-green-100 text-green-600' },
-    { label: 'Products Sold', value: 45, change: '+8', icon: Package, color: 'bg-purple-100 text-purple-600' },
-    { label: 'Customers Served', value: 12, change: '+5', icon: Users, color: 'bg-orange-100 text-orange-600' }
+    { label: 'Orders Today', value: todayOrders.length, change: `Total: ${orders.length}`, icon: ShoppingCart, color: 'bg-blue-100 text-blue-600' },
+    { label: 'Revenue Today', value: `₦${todayRevenue.toLocaleString()}`, change: 'Today', icon: DollarSign, color: 'bg-green-100 text-green-600' },
+    { label: 'Total Products', value: totalProducts, change: 'In stock', icon: Package, color: 'bg-purple-100 text-purple-600' },
+    { label: 'Completed Orders', value: completedOrders, change: `of ${orders.length}`, icon: Users, color: 'bg-orange-100 text-orange-600' }
   ];
 
-  const recentOrders = [
-    { id: 'ORD-001', customer: 'Lagos General Hospital', amount: '₦125,000', status: 'Completed', time: '10 mins ago' },
-    { id: 'ORD-002', customer: 'Enugu Pharmacy Ltd', amount: '₦85,000', status: 'Processing', time: '25 mins ago' },
-    { id: 'ORD-003', customer: 'Abuja Health Center', amount: '₦200,000', status: 'Pending', time: '1 hour ago' },
-    { id: 'ORD-004', customer: 'Dr. Chinedu\'s Clinic', amount: '₦45,000', status: 'Completed', time: '2 hours ago' }
-  ];
+  // Use real order data
+  const recentOrders = orders.slice(0, 4).map(order => ({
+    id: order.orderNumber || `ORD-${order.id}`,
+    customer: order.customerName || 'Customer',
+    amount: `₦${(order.total || 0).toLocaleString()}`,
+    status: order.status?.charAt(0).toUpperCase() + order.status?.slice(1) || 'Pending',
+    time: new Date(order.createdAt).toLocaleDateString()
+  }));
 
-  const topProducts = [
-    { name: 'Tegaderm Transparent Film', sold: 120, revenue: '₦420,000' },
-    { name: 'Mepilex Border Foam', sold: 85, revenue: '₦340,000' },
-    { name: 'Aquacel Ag+ Extra', sold: 65, revenue: '₦260,000' },
-    { name: 'DuoDerm CGF', sold: 50, revenue: '₦175,000' }
-  ];
+  const topProducts = products.slice(0, 4).map(product => ({
+    name: product.name,
+    sold: product.sold || 0,
+    revenue: `₦${((product.sold || 0) * product.price).toLocaleString()}`
+  }));
 
   const getStatusColor = (status) => {
     switch (status) {

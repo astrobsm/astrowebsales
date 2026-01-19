@@ -1,13 +1,20 @@
 // Distributor Dashboard Pages
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
 import { Package, ShoppingCart, CheckCircle, Clock } from 'lucide-react';
 
 export const DistributorDashboard = () => {
   const { user } = useAuthStore();
-  const { orders, getOrdersByDistributor, getPendingOrdersForDistributor } = useOrderStore();
+  const { orders, getOrdersByDistributor, getPendingOrdersForDistributor, fetchOrders } = useOrderStore();
   
+  // Fetch fresh data from database on mount and refresh periodically
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(() => fetchOrders(), 30000);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+
   const myOrders = getOrdersByDistributor(user?.id || 'dist-1');
   const pendingOrders = getPendingOrdersForDistributor(user?.id || 'dist-1');
 

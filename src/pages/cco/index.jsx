@@ -1,5 +1,5 @@
 // CCO (Customer Care Officer) Dashboard Pages
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
 import { useFeedbackStore } from '../../store/feedbackStore';
@@ -8,7 +8,16 @@ import toast from 'react-hot-toast';
 
 export const CCODashboard = () => {
   const { user } = useAuthStore();
-  const { getEscalatedOrders } = useOrderStore();
+  const { getEscalatedOrders, fetchOrders } = useOrderStore();
+  
+  // Fetch fresh data on mount and periodically
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
   const { getAllFeedbacks, getNewFeedbacksCount, getFeedbackAnalytics } = useFeedbackStore();
   
   const escalatedOrders = getEscalatedOrders();

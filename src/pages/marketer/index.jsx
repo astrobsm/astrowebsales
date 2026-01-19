@@ -1,26 +1,48 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Users, Target, TrendingUp, Calendar, Phone, FileText } from 'lucide-react';
+import { useOrderStore } from '../../store/orderStore';
 
 export const MarketerDashboard = () => {
+  const { orders, fetchOrders } = useOrderStore();
+  
+  // Fetch fresh data on mount and periodically
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+  
+  // Calculate real stats
+  const totalOrders = orders.length;
+  const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+  const pendingOrders = orders.filter(o => o.status === 'pending').length;
+  
   const stats = [
-    { label: 'Leads Generated', value: 45, change: '+12%', icon: Users, color: 'bg-blue-100 text-blue-600' },
-    { label: 'Conversions', value: 18, change: '+8%', icon: Target, color: 'bg-green-100 text-green-600' },
-    { label: 'Revenue Generated', value: '₦2.4M', change: '+15%', icon: TrendingUp, color: 'bg-purple-100 text-purple-600' },
-    { label: 'Meetings Scheduled', value: 12, change: '+5', icon: Calendar, color: 'bg-orange-100 text-orange-600' }
+    { label: 'Total Leads (Orders)', value: totalOrders, change: 'All time', icon: Users, color: 'bg-blue-100 text-blue-600' },
+    { label: 'Conversions', value: completedOrders, change: `${totalOrders > 0 ? Math.round((completedOrders/totalOrders)*100) : 0}%`, icon: Target, color: 'bg-green-100 text-green-600' },
+    { label: 'Revenue Generated', value: `₦${(totalRevenue/1000000).toFixed(1)}M`, change: 'Total', icon: TrendingUp, color: 'bg-purple-100 text-purple-600' },
+    { label: 'Pending Orders', value: pendingOrders, change: 'Needs follow-up', icon: Calendar, color: 'bg-orange-100 text-orange-600' }
   ];
 
-  const recentLeads = [
-    { id: 1, name: 'Lagos General Hospital', contact: 'Dr. Adebayo', status: 'Hot', date: '2024-01-15' },
-    { id: 2, name: 'Enugu Teaching Hospital', contact: 'Nurse Chioma', status: 'Warm', date: '2024-01-14' },
-    { id: 3, name: 'Abuja Medical Center', contact: 'Dr. Ibrahim', status: 'Cold', date: '2024-01-13' },
-    { id: 4, name: 'Port Harcourt Clinic', contact: 'Admin Dept', status: 'Hot', date: '2024-01-12' }
-  ];
+  // Use real order data for leads
+  const recentLeads = orders.slice(0, 4).map((order, index) => ({
+    id: index + 1,
+    name: order.customerName || 'Customer',
+    contact: order.phone || 'No phone',
+    status: order.status === 'completed' || order.status === 'delivered' ? 'Hot' : 
+            order.status === 'processing' ? 'Warm' : 'Cold',
+    date: new Date(order.createdAt).toISOString().split('T')[0]
+  }));
 
-  const upcomingTasks = [
-    { id: 1, task: 'Follow up with Lagos General Hospital', due: 'Today', priority: 'High' },
-    { id: 2, task: 'Product demo at Enugu Teaching Hospital', due: 'Tomorrow', priority: 'Medium' },
-    { id: 3, task: 'Send proposal to Abuja Medical Center', due: 'This Week', priority: 'Low' }
-  ];
+  const upcomingTasks = orders.filter(o => o.status === 'pending').slice(0, 3).map((order, index) => ({
+    id: index + 1,
+    task: `Follow up with ${order.customerName || 'Customer'} - Order #${order.orderNumber || order.id}`,
+    due: 'Today',
+    priority: index === 0 ? 'High' : index === 1 ? 'Medium' : 'Low'
+  }));
 
   const getStatusColor = (status) => {
     switch (status) {

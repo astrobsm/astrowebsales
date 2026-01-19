@@ -1,10 +1,22 @@
 // Wholesaler Dashboard Pages
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { useOrderStore } from '../../store/orderStore';
 import { ShoppingCart } from 'lucide-react';
 
 export const WholesalerDashboard = () => {
   const { user } = useAuthStore();
+  const { orders, fetchOrders } = useOrderStore();
+  
+  // Fetch fresh data from database on mount and refresh periodically
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(() => fetchOrders(), 30000);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+  
+  // Filter orders for this wholesaler
+  const myOrders = orders.filter(o => o.wholesalerId === user?.id);
   
   return (
     <div>
@@ -18,7 +30,7 @@ export const WholesalerDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm mb-1">Total Orders</p>
-              <p className="text-3xl font-bold text-gray-900">0</p>
+              <p className="text-3xl font-bold text-gray-900">{myOrders.length}</p>
             </div>
             <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
               <ShoppingCart className="text-white" size={24} />
@@ -28,7 +40,7 @@ export const WholesalerDashboard = () => {
       </div>
 
       <div className="card p-8 text-center">
-        <p className="text-gray-600 mb-4">No orders yet</p>
+        <p className="text-gray-600 mb-4">{myOrders.length === 0 ? 'No orders yet' : `You have ${myOrders.length} orders`}</p>
         <button className="btn-primary">Place New Order</button>
       </div>
     </div>

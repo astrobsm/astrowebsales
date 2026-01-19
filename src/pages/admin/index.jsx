@@ -23,12 +23,21 @@ import {
 const AdminDashboard = () => {
   const { user } = useAuthStore();
   const { orders, getOrderStats, fetchOrders } = useOrderStore();
-  const { products } = useProductStore();
+  const { products, fetchProducts } = useProductStore();
 
-  // Fetch orders from database on mount
+  // Fetch fresh data from database on mount and set up refresh interval
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchProducts();
+    
+    // Refresh data every 30 seconds for real-time sync
+    const interval = setInterval(() => {
+      fetchOrders();
+      fetchProducts();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [fetchOrders, fetchProducts]);
 
   const stats = getOrderStats();
   const recentOrders = orders.slice(0, 5);
