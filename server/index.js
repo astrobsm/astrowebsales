@@ -198,26 +198,34 @@ app.post('/api/upload/multiple', upload.array('images', 10), (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const { category, search } = req.query;
-    // Use COALESCE to handle cases where active column might not exist or be NULL
-    let query = 'SELECT * FROM products WHERE COALESCE(active, true) = true';
+    // Simple query without 'active' column filter - filter in JS if column exists
+    let query = 'SELECT * FROM products';
     const params = [];
+    const conditions = [];
 
     if (category) {
       params.push(category);
-      query += ` AND category = $${params.length}`;
+      conditions.push(`category = $${params.length}`);
     }
 
     if (search) {
       params.push(`%${search}%`);
-      query += ` AND (name ILIKE $${params.length} OR description ILIKE $${params.length})`;
+      conditions.push(`(name ILIKE $${params.length} OR description ILIKE $${params.length})`);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     query += ' ORDER BY name';
 
     const result = await pool.query(query, params);
     
+    // Filter out inactive products in JS (handles missing column gracefully)
+    const activeRows = result.rows.filter(row => row.active !== false);
+    
     // Convert to frontend format
-    const products = result.rows.map(row => {
+    const products = activeRows.map(row => {
       // If we have product_data JSON, use that
       if (row.product_data) {
         const data = typeof row.product_data === 'string' ? JSON.parse(row.product_data) : row.product_data;
