@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Filter, ChevronDown, Plus, Minus, Check } from 'lucide-react';
+import { ShoppingCart, Search, Filter, ChevronDown, Plus, Minus, Check, X, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
@@ -15,6 +15,8 @@ const RetailProducts = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('name');
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -61,6 +63,35 @@ const RetailProducts = () => {
         updateItemQuantity(cartItem.id, newQty);
       }
     }
+  };
+
+  const openProductDetails = (product) => {
+    setSelectedProduct(product);
+    setCurrentImageIndex(0);
+  };
+
+  const closeProductDetails = () => {
+    setSelectedProduct(null);
+    setCurrentImageIndex(0);
+  };
+
+  const getAllProductImages = (product) => {
+    const images = [];
+    if (product.image) images.push(product.image);
+    if (product.images && Array.isArray(product.images)) {
+      images.push(...product.images);
+    }
+    return images;
+  };
+
+  const nextImage = () => {
+    const images = getAllProductImages(selectedProduct);
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    const images = getAllProductImages(selectedProduct);
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const filteredProducts = getFilteredProducts();
@@ -144,19 +175,39 @@ const RetailProducts = () => {
 
             return (
               <div key={product.id} className="card overflow-hidden group">
-                <div className="aspect-square bg-gray-100 flex items-center justify-center text-6xl relative">
+                <div 
+                  className="aspect-square bg-gray-100 flex items-center justify-center relative cursor-pointer overflow-hidden"
+                  onClick={() => openProductDetails(product)}
+                >
                   {inCart && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1">
+                    <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 z-10">
                       <Check size={16} />
                     </div>
                   )}
-                  {product.category === 'dressings' && '🩹'}
-                  {product.category === 'bandages' && '🩺'}
-                  {product.category === 'antiseptics' && '🧴'}
-                  {product.category === 'tapes' && '📏'}
-                  {product.category === 'kits' && '🧰'}
-                  {product.category === 'instruments' && '✂️'}
-                  {product.category === 'ppe' && '🧤'}
+                  {product.image ? (
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="text-6xl">
+                      {product.category === 'dressings' && '🩹'}
+                      {product.category === 'bandages' && '🩺'}
+                      {product.category === 'antiseptics' && '🧴'}
+                      {product.category === 'tapes' && '📏'}
+                      {product.category === 'kits' && '🧰'}
+                      {product.category === 'instruments' && '✂️'}
+                      {product.category === 'ppe' && '🧤'}
+                      {!['dressings', 'bandages', 'antiseptics', 'tapes', 'kits', 'instruments', 'ppe'].includes(product.category) && '📦'}
+                    </div>
+                  )}
+                  {/* View Details overlay */}
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                    <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-primary-600 px-3 py-1 rounded-full text-sm">
+                      <Info size={14} className="mr-1" /> View Details
+                    </span>
+                  </div>
                 </div>
 
                 <div className="p-4">
@@ -227,6 +278,170 @@ const RetailProducts = () => {
           </div>
         )}
       </div>
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeProductDetails}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
+              <h2 className="text-xl font-bold text-gray-900">{selectedProduct.name}</h2>
+              <button onClick={closeProductDetails} className="p-2 hover:bg-gray-100 rounded-full">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* Image Gallery */}
+                <div>
+                  <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative">
+                    {getAllProductImages(selectedProduct).length > 0 ? (
+                      <>
+                        <img 
+                          src={getAllProductImages(selectedProduct)[currentImageIndex]} 
+                          alt={selectedProduct.name}
+                          className="w-full h-full object-contain"
+                        />
+                        {getAllProductImages(selectedProduct).length > 1 && (
+                          <>
+                            <button 
+                              onClick={prevImage}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg"
+                            >
+                              <ChevronLeft size={24} />
+                            </button>
+                            <button 
+                              onClick={nextImage}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg"
+                            >
+                              <ChevronRight size={24} />
+                            </button>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-8xl">📦</div>
+                    )}
+                  </div>
+                  
+                  {/* Thumbnail Gallery */}
+                  {getAllProductImages(selectedProduct).length > 1 && (
+                    <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+                      {getAllProductImages(selectedProduct).map((img, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 ${
+                            currentImageIndex === index ? 'border-primary-500' : 'border-transparent'
+                          }`}
+                        >
+                          <img src={img} alt={`View ${index + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Product Info */}
+                <div>
+                  <span className="inline-block px-3 py-1 bg-primary-100 text-primary-700 text-sm font-medium rounded-full mb-4">
+                    {categories.find(c => c.id === selectedProduct.category)?.name || selectedProduct.category}
+                  </span>
+                  
+                  <p className="text-sm text-gray-500 mb-2">SKU: {selectedProduct.sku}</p>
+                  
+                  <p className="text-3xl font-bold text-primary-600 mb-4">
+                    ₦{selectedProduct.prices.retail.toLocaleString()}
+                    <span className="text-lg text-gray-500 font-normal"> /{selectedProduct.unit}</span>
+                  </p>
+                  
+                  {selectedProduct.description && (
+                    <div className="mb-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
+                      <p className="text-gray-600">{selectedProduct.description}</p>
+                    </div>
+                  )}
+                  
+                  {selectedProduct.indications && (
+                    <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h3 className="font-semibold text-blue-900 mb-2 flex items-center">
+                        <Info size={18} className="mr-2" />
+                        Indications for Use
+                      </h3>
+                      <p className="text-blue-800 text-sm whitespace-pre-line">{selectedProduct.indications}</p>
+                    </div>
+                  )}
+                  
+                  {selectedProduct.specifications && (
+                    <div className="mb-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">Specifications</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {selectedProduct.specifications.size && (
+                          <div><span className="text-gray-500">Size:</span> {selectedProduct.specifications.size}</div>
+                        )}
+                        {selectedProduct.specifications.material && (
+                          <div><span className="text-gray-500">Material:</span> {selectedProduct.specifications.material}</div>
+                        )}
+                        {selectedProduct.specifications.packSize && (
+                          <div><span className="text-gray-500">Pack Size:</span> {selectedProduct.specifications.packSize}</div>
+                        )}
+                        {selectedProduct.specifications.sterile && (
+                          <div><span className="text-green-600 font-medium">✓ Sterile</span></div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
+                    <span className={`px-3 py-1 rounded-full ${
+                      selectedProduct.stock > 50 ? 'bg-green-100 text-green-700' :
+                      selectedProduct.stock > 10 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {selectedProduct.stock > 0 ? `${selectedProduct.stock} in stock` : 'Out of stock'}
+                    </span>
+                  </div>
+                  
+                  {/* Add to Cart */}
+                  {isInCart(selectedProduct.id) ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                        <button
+                          onClick={() => handleUpdateQuantity(selectedProduct, -1)}
+                          className="w-10 h-10 flex items-center justify-center bg-white rounded-lg border border-gray-300 hover:bg-gray-50"
+                        >
+                          <Minus size={20} />
+                        </button>
+                        <span className="text-xl font-semibold">{getCartItem(selectedProduct.id).quantity}</span>
+                        <button
+                          onClick={() => handleUpdateQuantity(selectedProduct, 1)}
+                          className="w-10 h-10 flex items-center justify-center bg-white rounded-lg border border-gray-300 hover:bg-gray-50"
+                        >
+                          <Plus size={20} />
+                        </button>
+                      </div>
+                      <Link to="/cart" className="w-full btn-secondary text-center block">
+                        View Cart
+                      </Link>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        handleAddToCart(selectedProduct);
+                      }}
+                      disabled={selectedProduct.stock === 0}
+                      className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ShoppingCart size={20} className="inline mr-2" />
+                      Add to Cart
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

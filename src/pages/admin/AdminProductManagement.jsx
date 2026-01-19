@@ -15,6 +15,7 @@ const AdminProductManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    indications: '',
     sku: '',
     category: '',
     subcategory: '',
@@ -25,6 +26,7 @@ const AdminProductManagement = () => {
     },
     stock: '',
     minOrder: 1,
+    unitsPerCarton: 1,
     specifications: {
       size: '',
       material: '',
@@ -32,27 +34,35 @@ const AdminProductManagement = () => {
       packSize: ''
     },
     image: null,
+    images: [],
     isFeatured: false,
+    isActive: true,
     unit: 'Piece'
   });
   const [isUploading, setIsUploading] = useState(false);
+  const [additionalImages, setAdditionalImages] = useState([]);
 
   const resetForm = () => {
     setFormData({
       name: '',
       description: '',
+      indications: '',
       sku: '',
       category: '',
       subcategory: '',
       prices: { retail: '', distributor: '', wholesaler: '' },
       stock: '',
       minOrder: 1,
+      unitsPerCarton: 1,
       specifications: { size: '', material: '', sterile: false, packSize: '' },
       image: null,
+      images: [],
       isFeatured: false,
+      isActive: true,
       unit: 'Piece'
     });
     setImagePreview(null);
+    setAdditionalImages([]);
     setEditingProduct(null);
   };
 
@@ -62,18 +72,23 @@ const AdminProductManagement = () => {
       setFormData({
         name: product.name,
         description: product.description || '',
+        indications: product.indications || '',
         sku: product.sku,
         category: product.category,
         subcategory: product.subcategory || '',
         prices: { ...product.prices },
         stock: product.stock,
         minOrder: product.minOrder || 1,
-        specifications: { ...product.specifications },
+        unitsPerCarton: product.unitsPerCarton || 1,
+        specifications: { ...(product.specifications || {}) },
         image: null,
+        images: product.images || [],
         isFeatured: product.isFeatured || false,
+        isActive: product.isActive !== false,
         unit: product.unit || 'Piece'
       });
       setImagePreview(product.image || null);
+      setAdditionalImages(product.images || []);
     } else {
       resetForm();
     }
@@ -158,6 +173,69 @@ const AdminProductManagement = () => {
     }
   };
 
+  // Handle additional product images upload
+  const handleAdditionalImagesChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    // Limit to 5 additional images
+    if (additionalImages.length + files.length > 5) {
+      toast.error('Maximum 5 additional images allowed');
+      return;
+    }
+    
+    setIsUploading(true);
+    const newImages = [];
+    
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} is too large (max 5MB)`);
+        continue;
+      }
+      
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append('image', file);
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          newImages.push(data.url);
+        } else {
+          // Fallback to base64
+          const base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          });
+          newImages.push(base64);
+        }
+      } catch (error) {
+        // Fallback to base64
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+        newImages.push(base64);
+      }
+    }
+    
+    setAdditionalImages(prev => [...prev, ...newImages]);
+    setIsUploading(false);
+    if (newImages.length > 0) {
+      toast.success(`${newImages.length} image(s) uploaded!`);
+    }
+  };
+
+  const removeAdditionalImage = (index) => {
+    setAdditionalImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -169,8 +247,13 @@ const AdminProductManagement = () => {
         wholesaler: parseFloat(formData.prices.wholesaler) || 0
       },
       stock: parseInt(formData.stock) || 0,
+      minOrder: parseInt(formData.minOrder) || 1,
+      unitsPerCarton: parseInt(formData.unitsPerCarton) || 1,
       image: formData.image || imagePreview,
+      images: additionalImages,
+      indications: formData.indications,
       isFeatured: formData.isFeatured,
+      isActive: formData.isActive,
       unit: formData.unit
     };
 
@@ -373,9 +456,56 @@ const AdminProductManagement = () => {
                       />
                       <label htmlFor="isFeatured" className="ml-2 text-sm font-medium text-yellow-800 flex items-center">
                         <Star size={16} className="mr-1 text-yellow-600" />
-                        Feature in Homepage Slideshow
+                        Featured
                       </label>
                     </div>
+                    
+                    {/* Active Toggle */}
+                    <div className="flex items-center mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <input
+                        type="checkbox"
+                        name="isActive"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                        id="isActive"
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <label htmlFor="isActive" className="ml-2 text-sm font-medium text-green-800">
+                        Active
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Additional Images */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Additional Images (up to 5)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {additionalImages.map((img, index) => (
+                      <div key={index} className="relative w-20 h-20">
+                        <img src={img} alt={`Additional ${index + 1}`} className="w-full h-full object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={() => removeAdditionalImage(index)}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {additionalImages.length < 5 && (
+                      <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-primary-500 transition-colors">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleAdditionalImagesChange}
+                          className="hidden"
+                          disabled={isUploading}
+                        />
+                        <Plus size={24} className="text-gray-400" />
+                      </label>
+                    )}
                   </div>
                 </div>
               </div>
@@ -432,6 +562,20 @@ const AdminProductManagement = () => {
                     placeholder="Product description..."
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Indications for Use
+                    <span className="text-gray-400 font-normal ml-2">(Shown to customers)</span>
+                  </label>
+                  <textarea
+                    name="indications"
+                    value={formData.indications}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                    placeholder="e.g., For treatment of minor cuts, wounds, burns. Apply directly to affected area. Consult a doctor if symptoms persist..."
+                  />
+                </div>
               </div>
 
               {/* Pricing */}
@@ -481,29 +625,63 @@ const AdminProductManagement = () => {
               </div>
 
               {/* Inventory */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Stock Quantity *</label>
-                  <input
-                    type="number"
-                    name="stock"
-                    value={formData.stock}
-                    onChange={handleChange}
-                    required
-                    min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Order Quantity</label>
-                  <input
-                    type="number"
-                    name="minOrder"
-                    value={formData.minOrder}
-                    onChange={handleChange}
-                    min="1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Inventory & Units</h3>
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Unit Type *</label>
+                    <select
+                      name="unit"
+                      value={formData.unit}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    >
+                      <option value="Piece">Piece</option>
+                      <option value="Bottle">Bottle</option>
+                      <option value="Box">Box</option>
+                      <option value="Pack">Pack</option>
+                      <option value="Roll">Roll</option>
+                      <option value="Tube">Tube</option>
+                      <option value="Sachet">Sachet</option>
+                      <option value="Kit">Kit</option>
+                      <option value="Set">Set</option>
+                      <option value="Carton">Carton</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Units per Carton</label>
+                    <input
+                      type="number"
+                      name="unitsPerCarton"
+                      value={formData.unitsPerCarton}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Stock Quantity *</label>
+                    <input
+                      type="number"
+                      name="stock"
+                      value={formData.stock}
+                      onChange={handleChange}
+                      required
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Min Order Qty</label>
+                    <input
+                      type="number"
+                      name="minOrder"
+                      value={formData.minOrder}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
                 </div>
               </div>
 
