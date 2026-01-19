@@ -93,22 +93,40 @@ export const useProductStore = create(
       addProduct: async (product) => {
         const newProduct = {
           ...product,
-          id: `prod-${Date.now()}`,
-          prices: {
-            distributor: product.distributorPrice,
-            retail: calculateRetailPrice(product.distributorPrice)
+          id: product.id || `prod-${Date.now()}`,
+          prices: product.prices || {
+            distributor: product.distributorPrice || 0,
+            retail: product.prices?.retail || calculateRetailPrice(product.distributorPrice || 0)
           },
           createdAt: new Date().toISOString()
         };
         
+        // Prepare data for API - convert prices to expected format
+        const apiData = {
+          ...newProduct,
+          distributorPrice: newProduct.prices?.distributor || 0,
+          price_distributor: newProduct.prices?.distributor || 0,
+          price_retail: newProduct.prices?.retail || 0,
+          price_wholesaler: newProduct.prices?.wholesaler || 0
+        };
+        
         // Save to database
         try {
-          await productsApi.create(newProduct);
-          console.log('Product saved to database:', newProduct.id);
+          const savedProduct = await productsApi.create(apiData);
+          console.log('Product saved to database:', savedProduct);
+          
+          // Use the saved product from database
+          if (savedProduct && savedProduct.id) {
+            set((state) => ({
+              products: [...state.products, savedProduct]
+            }));
+            return savedProduct;
+          }
         } catch (error) {
           console.error('Failed to save product to database:', error);
         }
         
+        // Fallback to local state only if database save failed
         set((state) => ({
           products: [...state.products, newProduct]
         }));
@@ -118,8 +136,13 @@ export const useProductStore = create(
       updateProduct: async (productId, updates) => {
         const updatedFields = { ...updates };
         
-        // Recalculate retail price if distributor price changed
-        if (updates.distributorPrice !== undefined) {
+        // Handle prices - support both formats
+        if (updates.prices) {
+          updatedFields.distributorPrice = updates.prices.distributor || 0;
+          updatedFields.price_distributor = updates.prices.distributor || 0;
+          updatedFields.price_retail = updates.prices.retail || 0;
+          updatedFields.price_wholesaler = updates.prices.wholesaler || 0;
+        } else if (updates.distributorPrice !== undefined) {
           updatedFields.prices = {
             distributor: updates.distributorPrice,
             retail: calculateRetailPrice(updates.distributorPrice)
