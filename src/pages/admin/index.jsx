@@ -717,6 +717,8 @@ export const AdminProducts = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const categories = [
     { id: 'bandages', name: 'Bandages' },
@@ -731,6 +733,7 @@ export const AdminProducts = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    indications: '',
     category: 'bandages',
     sku: '',
     unit: 'Piece',
@@ -739,13 +742,15 @@ export const AdminProducts = () => {
     stock: '',
     minOrderQty: 1,
     isActive: true,
-    isFeatured: false
+    isFeatured: false,
+    image: null
   });
 
   const resetForm = () => {
     setFormData({
       name: '',
       description: '',
+      indications: '',
       category: 'bandages',
       sku: '',
       unit: 'Piece',
@@ -754,8 +759,42 @@ export const AdminProducts = () => {
       stock: '',
       minOrderQty: 1,
       isActive: true,
-      isFeatured: false
+      isFeatured: false,
+      image: null
     });
+    setImagePreview(null);
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload
+    setIsUploading(true);
+    const uploadData = new FormData();
+    uploadData.append('image', file);
+    
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadData
+      });
+      const data = await response.json();
+      if (data.success) {
+        setFormData(prev => ({ ...prev, image: data.url }));
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const filteredProducts = products.filter(p => {
@@ -778,8 +817,11 @@ export const AdminProducts = () => {
       stock: product.stock || 0,
       minOrderQty: product.minOrderQty || 1,
       isActive: product.isActive !== false,
-      isFeatured: product.isFeatured || false
+      isFeatured: product.isFeatured || false,
+      indications: product.indications || '',
+      image: product.image || null
     });
+    setImagePreview(product.image || null);
     setShowEditModal(true);
   };
 
@@ -821,6 +863,49 @@ export const AdminProducts = () => {
 
   const ProductForm = ({ onSubmit, isEdit }) => (
     <form onSubmit={onSubmit} className="space-y-4">
+      {/* Image Upload Section */}
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
+        <div className="flex items-center gap-4">
+          {imagePreview ? (
+            <div className="relative">
+              <img src={imagePreview} alt="Preview" className="w-24 h-24 object-cover rounded-lg" />
+              <button
+                type="button"
+                onClick={() => {
+                  setImagePreview(null);
+                  setFormData(prev => ({ ...prev, image: null }));
+                }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+              <Image className="w-8 h-8 text-gray-400" />
+            </div>
+          )}
+          <div className="flex-1">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+              id="product-image-upload"
+            />
+            <label
+              htmlFor="product-image-upload"
+              className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 ${isUploading ? 'opacity-50' : ''}`}
+            >
+              <Upload className="w-4 h-4" />
+              {isUploading ? 'Uploading...' : 'Upload Image'}
+            </label>
+            <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
         <input
@@ -959,6 +1044,19 @@ export const AdminProducts = () => {
           </label>
         </div>
       </div>
+      
+      {/* Indications */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Indications / Usage</label>
+        <textarea
+          value={formData.indications}
+          onChange={(e) => setFormData({ ...formData, indications: e.target.value })}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+          rows={3}
+          placeholder="What is this product used for? (e.g., For wound care, compression therapy, etc.)"
+        />
+      </div>
+
       <div className="flex gap-2 pt-4">
         <button
           type="button"
