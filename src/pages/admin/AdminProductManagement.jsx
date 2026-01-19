@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Upload, X, Save, Image, Star, StarOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProductStore } from '../../store/productStore';
-import { apiService } from '../../services/api';
 
+// Product Management Component with Image Upload
 const AdminProductManagement = () => {
   const { products, categories, addProduct, updateProduct, deleteProduct } = useProductStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -412,15 +412,21 @@ const AdminProductManagement = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Image Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
+              {/* Image Upload Section - FIRST */}
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Image size={20} className="mr-2 text-primary-600" />
+                  Product Images
+                </h3>
                 <div className="flex items-start gap-4">
-                  <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative">
+                  <div className="w-32 h-32 bg-white rounded-lg flex items-center justify-center overflow-hidden relative border-2 border-dashed border-gray-300">
                     {imagePreview ? (
                       <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <Image size={32} className="text-gray-300" />
+                      <div className="text-center">
+                        <Image size={32} className="text-gray-300 mx-auto" />
+                        <span className="text-xs text-gray-400 mt-1">No image</span>
+                      </div>
                     )}
                     {isUploading && (
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -429,10 +435,10 @@ const AdminProductManagement = () => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <label className="cursor-pointer">
-                      <span className="btn-secondary inline-flex items-center">
+                    <label className="cursor-pointer inline-block">
+                      <span className="bg-primary-600 text-white px-4 py-2 rounded-lg inline-flex items-center hover:bg-primary-700 transition-colors">
                         <Upload size={18} className="mr-2" />
-                        {isUploading ? 'Uploading...' : 'Upload Image'}
+                        {isUploading ? 'Uploading...' : 'Upload Main Image'}
                       </span>
                       <input
                         type="file"
