@@ -1,9 +1,10 @@
 // WebSocket Sync Service for real-time cross-device synchronization
 import { io } from 'socket.io-client';
 
-// In production, use same origin. In development, use localhost:5000
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
-  (import.meta.env.PROD ? '' : 'http://localhost:5000');
+// In production, use same origin (empty string). In development, use localhost:5000
+// Check if we're in production using MODE or PROD environment variable
+const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD === true;
+const SOCKET_URL = isProduction ? '' : 'http://localhost:5000';
 
 class SyncService {
   constructor() {

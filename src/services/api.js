@@ -1,7 +1,8 @@
 // API Service Layer for connecting to the Express backend
 // Uses relative URLs in production (served from same server)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
+// Check if we're in production using MODE or PROD environment variable
+const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD === true;
+const API_BASE_URL = isProduction ? '/api' : 'http://localhost:5000/api';
 
 // Helper function for making API requests
 const apiRequest = async (endpoint, options = {}) => {

@@ -49,6 +49,10 @@ const BecomeDistributor = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    // Use relative URL in production, localhost in development
+    const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD === true;
+    const apiUrl = isProduction ? '/api/partners/apply' : 'http://localhost:5000/api/partners/apply';
+
     try {
       const submitData = new FormData();
       Object.keys(formData).forEach(key => {
@@ -59,7 +63,7 @@ const BecomeDistributor = () => {
         submitData.append('documents', doc);
       });
 
-      await axios.post('http://localhost:5000/api/partners/apply', submitData, {
+      await axios.post(apiUrl, submitData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
