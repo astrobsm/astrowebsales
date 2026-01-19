@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
 import { Plus, Edit, Trash2, Search, Upload, X, Save, Image, Star, StarOff, Download, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProductStore } from '../../store/productStore';
@@ -16,6 +16,9 @@ const AdminProductManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [bulkUploadResults, setBulkUploadResults] = useState(null);
+  const bulkFileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -151,6 +154,133 @@ const AdminProductManagement = () => {
     URL.revokeObjectURL(link.href);
     toast.success('Template downloaded! Fill it out and use Bulk Upload to import products.');
   }, []);
+
+  // Parse CSV content
+  const parseCSV = (text) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const rows = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (const char of lines[i]) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+      
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      rows.push(row);
+    }
+    return rows;
+  };
+
+  // Handle bulk CSV upload
+  const handleBulkUpload = useCallback(async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.csv')) {
+      toast.error('Please upload a CSV file');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const rows = parseCSV(text);
+        
+        if (rows.length === 0) {
+          toast.error('No valid data found in CSV');
+          return;
+        }
+        
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+        
+        for (const row of rows) {
+          try {
+            // Validate required fields
+            if (!row.name || !row.sku) {
+              errors.push(`Row missing name or SKU: ${row.name || 'unnamed'}`);
+              errorCount++;
+              continue;
+            }
+            
+            // Check for duplicate SKU
+            const existingProduct = products.find(p => p.sku === row.sku);
+            if (existingProduct) {
+              errors.push(`SKU already exists: ${row.sku}`);
+              errorCount++;
+              continue;
+            }
+            
+            const productData = {
+              name: row.name,
+              sku: row.sku,
+              category: row.category || 'Accessories',
+              description: row.description || '',
+              indications: row.indications || '',
+              unit: row.unit || 'Piece',
+              unitsPerCarton: parseInt(row.unitsPerCarton) || 1,
+              prices: {
+                retail: parseFloat(row.priceRetail) || 0,
+                distributor: parseFloat(row.priceDistributor) || 0,
+                wholesaler: parseFloat(row.priceWholesaler) || 0
+              },
+              stock: parseInt(row.stock) || 0,
+              minOrder: parseInt(row.minOrder) || 1,
+              isFeatured: row.isFeatured === 'true' || row.isFeatured === '1',
+              isActive: row.isActive !== 'false' && row.isActive !== '0',
+              image: null,
+              images: []
+            };
+            
+            await addProduct(productData);
+            successCount++;
+          } catch (err) {
+            errors.push(`Error adding ${row.name}: ${err.message}`);
+            errorCount++;
+          }
+        }
+        
+        setBulkUploadResults({ successCount, errorCount, errors, total: rows.length });
+        setShowBulkUploadModal(true);
+        
+        if (successCount > 0) {
+          toast.success(`Successfully added ${successCount} product(s)!`);
+        }
+        if (errorCount > 0) {
+          toast.error(`${errorCount} product(s) failed to import`);
+        }
+      } catch (error) {
+        toast.error('Failed to parse CSV file');
+        console.error('CSV parse error:', error);
+      }
+    };
+    
+    reader.readAsText(file);
+    // Reset file input
+    if (bulkFileInputRef.current) {
+      bulkFileInputRef.current.value = '';
+    }
+  }, [addProduct, products]);
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
@@ -326,15 +456,26 @@ const AdminProductManagement = () => {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-display font-bold text-gray-900">Products Management</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button 
             onClick={downloadProductTemplate} 
-            className="btn-secondary flex items-center"
+            className="btn-secondary flex items-center text-sm"
             title="Download CSV template for bulk product upload"
           >
-            <Download size={20} className="mr-2" />
+            <Download size={18} className="mr-1" />
             Template
           </button>
+          <label className="btn-secondary flex items-center text-sm cursor-pointer" title="Upload CSV file to add multiple products">
+            <Upload size={18} className="mr-1" />
+            Bulk Upload
+            <input
+              ref={bulkFileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleBulkUpload}
+              className="hidden"
+            />
+          </label>
           <button onClick={() => handleOpenModal()} className="btn-primary flex items-center">
             <Plus size={20} className="mr-2" />
             Add Product
@@ -801,6 +942,58 @@ const AdminProductManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Results Modal */}
+      {showBulkUploadModal && bulkUploadResults && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowBulkUploadModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-display font-semibold">Bulk Upload Results</h2>
+              <button onClick={() => setShowBulkUploadModal(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-green-600">{bulkUploadResults.successCount}</p>
+                  <p className="text-sm text-green-700">Successfully Added</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-red-600">{bulkUploadResults.errorCount}</p>
+                  <p className="text-sm text-red-700">Failed</p>
+                </div>
+              </div>
+              
+              {bulkUploadResults.errors.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">Errors:</h3>
+                  <ul className="bg-red-50 p-3 rounded-lg text-sm text-red-700 max-h-40 overflow-y-auto">
+                    {bulkUploadResults.errors.map((error, index) => (
+                      <li key={index} className="mb-1">• {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              <div className="mt-6 flex justify-end">
+                <button 
+                  onClick={() => setShowBulkUploadModal(false)} 
+                  className="btn-primary"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
