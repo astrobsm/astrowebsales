@@ -38,8 +38,8 @@ export const statusApi = {
     try {
       const response = await apiRequest('/status');
       return {
-        server: response.status || 'online',
-        database: response.database?.connected ? 'connected' : 'disconnected',
+        server: response.server || 'online',
+        database: response.database === 'connected' ? 'connected' : 'disconnected',
         connectedClients: response.connectedClients || 0,
         timestamp: response.timestamp
       };
