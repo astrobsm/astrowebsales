@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
 import { useSyncStore } from './syncStore';
 import { usePWAStore } from './pwaStore';
+import { ordersApi } from '../services/api';
 import { v4 as uuidv4 } from 'uuid';
 
 // Order Statuses
@@ -35,6 +36,37 @@ export const useOrderStore = create(
       (set, get) => ({
         orders: [],
         escalatedOrders: [],
+        isLoading: false,
+        
+        // Fetch orders from database
+        fetchOrders: async () => {
+          set({ isLoading: true });
+          try {
+            const dbOrders = await ordersApi.getAll();
+            if (dbOrders && Array.isArray(dbOrders)) {
+              // Merge database orders with local orders
+              const localOrders = get().orders;
+              const mergedOrders = [...dbOrders];
+              
+              // Add any local orders not in database
+              localOrders.forEach(localOrder => {
+                if (!mergedOrders.find(o => o.id === localOrder.id)) {
+                  mergedOrders.push(localOrder);
+                }
+              });
+              
+              // Sort by createdAt descending
+              mergedOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+              
+              set({ orders: mergedOrders, isLoading: false });
+              return mergedOrders;
+            }
+          } catch (error) {
+            console.log('Failed to fetch orders from database:', error);
+          }
+          set({ isLoading: false });
+          return get().orders;
+        },
         
         // Generate order number
         generateOrderNumber: () => {
@@ -47,7 +79,7 @@ export const useOrderStore = create(
         },
         
         // Create new order
-        createOrder: (orderData) => {
+        createOrder: async (orderData) => {
           const orderNumber = get().generateOrderNumber();
           const now = new Date();
           const escalationTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
@@ -75,9 +107,19 @@ export const useOrderStore = create(
             communications: []
           };
           
+          // Save to local state immediately
           set((state) => ({
             orders: [newOrder, ...state.orders]
           }));
+          
+          // Save to database (async, don't block)
+          try {
+            await ordersApi.create(newOrder);
+            console.log('Order saved to database:', newOrder.orderNumber);
+          } catch (error) {
+            console.error('Failed to save order to database:', error);
+            // Order is still in local storage, will sync later
+          }
           
           // Schedule escalation check
           get().scheduleEscalationCheck(newOrder.id, escalationTime);

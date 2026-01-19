@@ -546,26 +546,46 @@ app.post('/api/contact', async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const {
-      order_number, customer_name, customer_email, customer_phone, customer_address,
-      customer_state, customer_city, items, subtotal, delivery_fee, total_amount,
-      urgency_level, delivery_option, distributor_id, distributor_name
-    } = req.body;
+    const orderData = req.body;
+    
+    // Support both camelCase and snake_case
+    const order_number = orderData.orderNumber || orderData.order_number;
+    const customer_name = orderData.customerName || orderData.customer_name;
+    const customer_email = orderData.customerEmail || orderData.customer_email;
+    const customer_phone = orderData.customerPhone || orderData.customer_phone;
+    const customer_address = orderData.customerAddress || orderData.customer_address || orderData.address;
+    const customer_state = orderData.customerState || orderData.customer_state || orderData.state;
+    const customer_city = orderData.customerCity || orderData.customer_city || orderData.city;
+    const items = orderData.items || [];
+    const subtotal = orderData.subtotal || 0;
+    const delivery_fee = orderData.deliveryFee || orderData.delivery_fee || 0;
+    const total_amount = orderData.total || orderData.totalAmount || orderData.total_amount || 0;
+    const urgency_level = orderData.urgencyLevel || orderData.urgency_level || 'routine';
+    const delivery_option = orderData.deliveryMode || orderData.deliveryOption || orderData.delivery_option || 'pickup';
+    const distributor_id = orderData.distributorId || orderData.distributor_id;
+    const distributor_name = orderData.distributorName || orderData.distributor_name;
+    const status = orderData.status || 'pending';
+    const order_id = orderData.id;
 
     const result = await pool.query(
       `INSERT INTO orders 
-       (order_number, customer_name, customer_email, customer_phone, customer_address,
+       (id, order_number, customer_name, customer_email, customer_phone, customer_address,
         customer_state, customer_city, items, subtotal, delivery_fee, total_amount,
-        urgency_level, delivery_option, distributor_id, distributor_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        urgency_level, delivery_option, distributor_id, distributor_name, status, order_data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+       ON CONFLICT (id) DO UPDATE SET
+         status = EXCLUDED.status,
+         order_data = EXCLUDED.order_data,
+         updated_at = CURRENT_TIMESTAMP
        RETURNING *`,
-      [order_number, customer_name, customer_email, customer_phone, customer_address,
+      [order_id, order_number, customer_name, customer_email, customer_phone, customer_address,
        customer_state, customer_city, JSON.stringify(items), subtotal, delivery_fee, total_amount,
-       urgency_level, delivery_option, distributor_id, distributor_name]
+       urgency_level, delivery_option, distributor_id, distributor_name, status, JSON.stringify(orderData)]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error('Order creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -573,8 +593,40 @@ app.post('/api/orders', async (req, res) => {
 app.get('/api/orders', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
-    res.json(result.rows);
+    
+    // Convert back to frontend format
+    const orders = result.rows.map(row => {
+      // If we have the full order_data, use that
+      if (row.order_data) {
+        return typeof row.order_data === 'string' ? JSON.parse(row.order_data) : row.order_data;
+      }
+      // Otherwise construct from individual fields
+      return {
+        id: row.id,
+        orderNumber: row.order_number,
+        customerName: row.customer_name,
+        customerEmail: row.customer_email,
+        customerPhone: row.customer_phone,
+        address: row.customer_address,
+        state: row.customer_state,
+        city: row.customer_city,
+        items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items,
+        subtotal: parseFloat(row.subtotal),
+        deliveryFee: parseFloat(row.delivery_fee),
+        total: parseFloat(row.total_amount),
+        urgencyLevel: row.urgency_level,
+        deliveryMode: row.delivery_option,
+        distributorId: row.distributor_id,
+        distributorName: row.distributor_name,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+    });
+    
+    res.json(orders);
   } catch (error) {
+    console.error('Get orders error:', error);
     res.status(500).json({ error: error.message });
   }
 });

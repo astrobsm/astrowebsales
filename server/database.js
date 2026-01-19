@@ -236,29 +236,40 @@ export const initializeDatabase = async () => {
     // Orders table (enhanced)
     await client.query(`
       CREATE TABLE IF NOT EXISTS orders (
-        id SERIAL PRIMARY KEY,
+        id VARCHAR(50) PRIMARY KEY,
         order_number VARCHAR(50) UNIQUE NOT NULL,
-        customer_name VARCHAR(255) NOT NULL,
+        customer_name VARCHAR(255),
         customer_email VARCHAR(255),
-        customer_phone VARCHAR(50) NOT NULL,
+        customer_phone VARCHAR(50),
         customer_address TEXT,
         customer_state VARCHAR(100),
         customer_city VARCHAR(100),
-        items JSONB NOT NULL,
+        items JSONB,
         subtotal DECIMAL(10, 2),
         delivery_fee DECIMAL(10, 2),
         total_amount DECIMAL(10, 2),
         urgency_level VARCHAR(50),
         delivery_option VARCHAR(50),
-        distributor_id INTEGER,
+        distributor_id VARCHAR(50),
         distributor_name VARCHAR(255),
         status VARCHAR(50) DEFAULT 'pending',
         escalation_level INTEGER DEFAULT 0,
         escalation_date TIMESTAMP,
         notes TEXT,
+        order_data JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+    
+    // Add order_data column if it doesn't exist (for existing tables)
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='order_data') THEN
+          ALTER TABLE orders ADD COLUMN order_data JSONB;
+        END IF;
+      END $$;
     `);
 
     // Contact Messages table

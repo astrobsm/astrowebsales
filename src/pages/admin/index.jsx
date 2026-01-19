@@ -22,8 +22,13 @@ import {
 // Main Admin Dashboard
 const AdminDashboard = () => {
   const { user } = useAuthStore();
-  const { orders, getOrderStats } = useOrderStore();
+  const { orders, getOrderStats, fetchOrders } = useOrderStore();
   const { products } = useProductStore();
+
+  // Fetch orders from database on mount
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const stats = getOrderStats();
   const recentOrders = orders.slice(0, 5);
@@ -1192,11 +1197,16 @@ export const AdminProducts = () => {
 
 // AdminOrders
 export const AdminOrders = () => {
-  const { orders, updateOrderStatus } = useOrderStore();
+  const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Fetch orders from database on mount
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800',
