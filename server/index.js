@@ -598,27 +598,37 @@ app.get('/api/orders', async (req, res) => {
     const orders = result.rows.map(row => {
       // If we have the full order_data, use that
       if (row.order_data) {
-        return typeof row.order_data === 'string' ? JSON.parse(row.order_data) : row.order_data;
+        const orderData = typeof row.order_data === 'string' ? JSON.parse(row.order_data) : row.order_data;
+        // Ensure required fields exist
+        return {
+          ...orderData,
+          id: orderData.id || row.id,
+          orderNumber: orderData.orderNumber || row.order_number || `ORD-${row.id}`,
+          customerName: orderData.customerName || row.customer_name || 'Unknown Customer',
+          status: orderData.status || row.status || 'pending',
+          total: orderData.total || parseFloat(row.total_amount) || 0,
+          createdAt: orderData.createdAt || row.created_at
+        };
       }
       // Otherwise construct from individual fields
       return {
-        id: row.id,
-        orderNumber: row.order_number,
-        customerName: row.customer_name,
-        customerEmail: row.customer_email,
-        customerPhone: row.customer_phone,
-        address: row.customer_address,
-        state: row.customer_state,
-        city: row.customer_city,
-        items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items,
-        subtotal: parseFloat(row.subtotal),
-        deliveryFee: parseFloat(row.delivery_fee),
-        total: parseFloat(row.total_amount),
-        urgencyLevel: row.urgency_level,
-        deliveryMode: row.delivery_option,
-        distributorId: row.distributor_id,
-        distributorName: row.distributor_name,
-        status: row.status,
+        id: row.id?.toString() || '',
+        orderNumber: row.order_number || `ORD-${row.id || 'UNKNOWN'}`,
+        customerName: row.customer_name || 'Unknown Customer',
+        customerEmail: row.customer_email || '',
+        customerPhone: row.customer_phone || '',
+        address: row.customer_address || '',
+        state: row.customer_state || '',
+        city: row.customer_city || '',
+        items: row.items ? (typeof row.items === 'string' ? JSON.parse(row.items) : row.items) : [],
+        subtotal: parseFloat(row.subtotal) || 0,
+        deliveryFee: parseFloat(row.delivery_fee) || 0,
+        total: parseFloat(row.total_amount) || 0,
+        urgencyLevel: row.urgency_level || 'routine',
+        deliveryMode: row.delivery_option || 'pickup',
+        distributorId: row.distributor_id || null,
+        distributorName: row.distributor_name || '',
+        status: row.status || 'pending',
         createdAt: row.created_at,
         updatedAt: row.updated_at
       };
