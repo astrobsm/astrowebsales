@@ -91,12 +91,17 @@ export const useProductStore = create(
 
       // Admin functions
       addProduct: async (product) => {
+        const distributorPrice = product.prices?.distributor || product.distributorPrice || 0;
+        const retailPrice = product.prices?.retail || calculateRetailPrice(distributorPrice);
+        const wholesalerPrice = product.prices?.wholesaler || Math.round(distributorPrice * 1.1);
+        
         const newProduct = {
           ...product,
           id: product.id || `prod-${Date.now()}`,
-          prices: product.prices || {
-            distributor: product.distributorPrice || 0,
-            retail: product.prices?.retail || calculateRetailPrice(product.distributorPrice || 0)
+          prices: {
+            distributor: parseFloat(distributorPrice) || 0,
+            retail: parseFloat(retailPrice) || 0,
+            wholesaler: parseFloat(wholesalerPrice) || 0
           },
           createdAt: new Date().toISOString()
         };
@@ -104,10 +109,10 @@ export const useProductStore = create(
         // Prepare data for API - convert prices to expected format
         const apiData = {
           ...newProduct,
-          distributorPrice: newProduct.prices?.distributor || 0,
-          price_distributor: newProduct.prices?.distributor || 0,
-          price_retail: newProduct.prices?.retail || 0,
-          price_wholesaler: newProduct.prices?.wholesaler || 0
+          distributorPrice: newProduct.prices.distributor,
+          price_distributor: newProduct.prices.distributor,
+          price_retail: newProduct.prices.retail,
+          price_wholesaler: newProduct.prices.wholesaler
         };
         
         // Save to database
@@ -136,17 +141,31 @@ export const useProductStore = create(
       updateProduct: async (productId, updates) => {
         const updatedFields = { ...updates };
         
-        // Handle prices - support both formats
+        // Handle prices - support both formats and ensure all price fields are set
         if (updates.prices) {
-          updatedFields.distributorPrice = updates.prices.distributor || 0;
-          updatedFields.price_distributor = updates.prices.distributor || 0;
-          updatedFields.price_retail = updates.prices.retail || 0;
-          updatedFields.price_wholesaler = updates.prices.wholesaler || 0;
-        } else if (updates.distributorPrice !== undefined) {
+          const distributorPrice = parseFloat(updates.prices.distributor) || 0;
+          const retailPrice = parseFloat(updates.prices.retail) || calculateRetailPrice(distributorPrice);
+          const wholesalerPrice = parseFloat(updates.prices.wholesaler) || Math.round(distributorPrice * 1.1);
+          
           updatedFields.prices = {
-            distributor: updates.distributorPrice,
-            retail: calculateRetailPrice(updates.distributorPrice)
+            distributor: distributorPrice,
+            retail: retailPrice,
+            wholesaler: wholesalerPrice
           };
+          updatedFields.distributorPrice = distributorPrice;
+          updatedFields.price_distributor = distributorPrice;
+          updatedFields.price_retail = retailPrice;
+          updatedFields.price_wholesaler = wholesalerPrice;
+        } else if (updates.distributorPrice !== undefined) {
+          const distributorPrice = parseFloat(updates.distributorPrice) || 0;
+          updatedFields.prices = {
+            distributor: distributorPrice,
+            retail: calculateRetailPrice(distributorPrice),
+            wholesaler: Math.round(distributorPrice * 1.1)
+          };
+          updatedFields.price_distributor = distributorPrice;
+          updatedFields.price_retail = updatedFields.prices.retail;
+          updatedFields.price_wholesaler = updatedFields.prices.wholesaler;
         }
         
         // Save to database
@@ -167,7 +186,15 @@ export const useProductStore = create(
         }));
       },
 
-      deleteProduct: (productId) => {
+      deleteProduct: async (productId) => {
+        // Delete from database
+        try {
+          await productsApi.delete(productId);
+          console.log('Product deleted from database:', productId);
+        } catch (error) {
+          console.error('Failed to delete product from database:', error);
+        }
+        
         set((state) => ({
           products: state.products.map((p) =>
             p.id === productId ? { ...p, isActive: false } : p

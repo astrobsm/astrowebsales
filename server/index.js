@@ -246,7 +246,8 @@ app.get('/api/products', async (req, res) => {
         unitsPerCarton: row.units_per_carton || 1,
         prices: {
           distributor: parseFloat(row.price_distributor) || 0,
-          retail: parseFloat(row.price_retail) || 0
+          retail: parseFloat(row.price_retail) || 0,
+          wholesaler: parseFloat(row.price_wholesaler) || 0
         },
         stock: row.stock || 0,
         minOrderQty: row.min_order_qty || 1,
@@ -291,8 +292,9 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
     const category = productData.category || '';
     const unit = productData.unit || 'Piece';
     const unitsPerCarton = productData.unitsPerCarton || productData.units_per_carton || 1;
-    const priceDistributor = productData.distributorPrice || productData.price_distributor || 0;
-    const priceRetail = Math.round(priceDistributor * 1.25);
+    const priceDistributor = parseFloat(productData.distributorPrice || productData.price_distributor || 0);
+    const priceRetail = parseFloat(productData.price_retail) || Math.round(priceDistributor * 1.25);
+    const priceWholesaler = parseFloat(productData.price_wholesaler) || Math.round(priceDistributor * 1.1);
     const stock = productData.stock || 0;
     const minOrderQty = productData.minOrderQty || productData.min_order_qty || 1;
     const indications = productData.indications || '';
@@ -313,8 +315,9 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
       unit,
       unitsPerCarton,
       prices: {
-        distributor: parseFloat(priceDistributor),
-        retail: priceRetail
+        distributor: priceDistributor,
+        retail: priceRetail,
+        wholesaler: priceWholesaler
       },
       stock: parseInt(stock),
       minOrderQty: parseInt(minOrderQty),
@@ -329,9 +332,9 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
     const result = await pool.query(
       `INSERT INTO products 
        (id, name, description, sku, category, unit, units_per_carton,
-        price_retail, price_distributor, stock, min_order_qty, image_url, 
+        price_retail, price_distributor, price_wholesaler, stock, min_order_qty, image_url, 
         indications, active, is_featured, product_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          description = EXCLUDED.description,
@@ -340,7 +343,7 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
          updated_at = CURRENT_TIMESTAMP
        RETURNING *`,
       [productId, name, description, sku, category, unit, unitsPerCarton,
-       priceRetail, priceDistributor, stock, minOrderQty, imageUrl,
+       priceRetail, priceDistributor, priceWholesaler, stock, minOrderQty, imageUrl,
        indications, isActive, isFeatured, JSON.stringify(fullProductData)]
     );
 
@@ -363,8 +366,9 @@ app.put('/api/products/:id', upload.single('image'), async (req, res) => {
     const category = productData.category || '';
     const unit = productData.unit || 'Piece';
     const unitsPerCarton = productData.unitsPerCarton || productData.units_per_carton || 1;
-    const priceDistributor = productData.distributorPrice || productData.price_distributor || 0;
-    const priceRetail = Math.round(priceDistributor * 1.25);
+    const priceDistributor = parseFloat(productData.distributorPrice || productData.price_distributor || 0);
+    const priceRetail = parseFloat(productData.price_retail) || Math.round(priceDistributor * 1.25);
+    const priceWholesaler = parseFloat(productData.price_wholesaler) || Math.round(priceDistributor * 1.1);
     const stock = productData.stock || 0;
     const minOrderQty = productData.minOrderQty || productData.min_order_qty || 1;
     const indications = productData.indications || '';
@@ -384,8 +388,9 @@ app.put('/api/products/:id', upload.single('image'), async (req, res) => {
       unit,
       unitsPerCarton,
       prices: {
-        distributor: parseFloat(priceDistributor),
-        retail: priceRetail
+        distributor: priceDistributor,
+        retail: priceRetail,
+        wholesaler: priceWholesaler
       },
       stock: parseInt(stock),
       minOrderQty: parseInt(minOrderQty),
@@ -400,12 +405,12 @@ app.put('/api/products/:id', upload.single('image'), async (req, res) => {
     const result = await pool.query(
       `UPDATE products 
        SET name = $1, description = $2, sku = $3, category = $4, unit = $5,
-           units_per_carton = $6, price_retail = $7, price_distributor = $8,
-           stock = $9, min_order_qty = $10, image_url = $11, indications = $12,
-           active = $13, is_featured = $14, product_data = $15, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $16
+           units_per_carton = $6, price_retail = $7, price_distributor = $8, price_wholesaler = $9,
+           stock = $10, min_order_qty = $11, image_url = $12, indications = $13,
+           active = $14, is_featured = $15, product_data = $16, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $17
        RETURNING *`,
-      [name, description, sku, category, unit, unitsPerCarton, priceRetail, priceDistributor,
+      [name, description, sku, category, unit, unitsPerCarton, priceRetail, priceDistributor, priceWholesaler,
        stock, minOrderQty, imageUrl, indications, isActive, isFeatured, 
        JSON.stringify(fullProductData), productId]
     );

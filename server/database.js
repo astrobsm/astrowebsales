@@ -114,7 +114,9 @@ export const initializeDatabase = async () => {
       { name: 'units_per_carton', type: 'INTEGER DEFAULT 1' },
       { name: 'min_order_qty', type: 'INTEGER DEFAULT 1' },
       { name: 'active', type: 'BOOLEAN DEFAULT true' },
-      { name: 'sku', type: 'VARCHAR(100)' }
+      { name: 'sku', type: 'VARCHAR(100)' },
+      { name: 'price_wholesaler', type: 'DECIMAL(10, 2)' },
+      { name: 'subcategory', type: 'VARCHAR(100)' }
     ];
     
     for (const col of columnsToAdd) {
