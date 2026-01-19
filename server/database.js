@@ -126,6 +126,9 @@ export const initializeDatabase = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='min_order_qty') THEN
           ALTER TABLE products ADD COLUMN min_order_qty INTEGER DEFAULT 1;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='active') THEN
+          ALTER TABLE products ADD COLUMN active BOOLEAN DEFAULT true;
+        END IF;
       END $$;
     `);
     
