@@ -44,22 +44,12 @@ export const useOrderStore = create(
           try {
             const dbOrders = await ordersApi.getAll();
             if (dbOrders && Array.isArray(dbOrders)) {
-              // Merge database orders with local orders
-              const localOrders = get().orders;
-              const mergedOrders = [...dbOrders];
-              
-              // Add any local orders not in database
-              localOrders.forEach(localOrder => {
-                if (!mergedOrders.find(o => o.id === localOrder.id)) {
-                  mergedOrders.push(localOrder);
-                }
-              });
-              
+              // Use only database orders - no local merging
               // Sort by createdAt descending
-              mergedOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+              dbOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
               
-              set({ orders: mergedOrders, isLoading: false });
-              return mergedOrders;
+              set({ orders: dbOrders, isLoading: false });
+              return dbOrders;
             }
           } catch (error) {
             console.log('Failed to fetch orders from database:', error);
