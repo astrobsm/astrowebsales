@@ -214,8 +214,45 @@ app.get('/api/products', async (req, res) => {
     query += ' ORDER BY name';
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    
+    // Convert to frontend format
+    const products = result.rows.map(row => {
+      // If we have product_data JSON, use that
+      if (row.product_data) {
+        const data = typeof row.product_data === 'string' ? JSON.parse(row.product_data) : row.product_data;
+        return {
+          ...data,
+          id: data.id || row.id?.toString(),
+          image: data.image || row.image_url
+        };
+      }
+      // Otherwise construct from individual fields
+      return {
+        id: row.id?.toString() || '',
+        name: row.name || '',
+        description: row.description || '',
+        category: row.category || '',
+        sku: row.sku || '',
+        unit: row.unit || 'Piece',
+        unitsPerCarton: row.units_per_carton || 1,
+        prices: {
+          distributor: parseFloat(row.price_distributor) || 0,
+          retail: parseFloat(row.price_retail) || 0
+        },
+        stock: row.stock || 0,
+        minOrderQty: row.min_order_qty || 1,
+        image: row.image_url || null,
+        images: row.image_url ? [row.image_url] : [],
+        indications: row.indications || '',
+        isActive: row.active !== false,
+        isFeatured: row.is_featured || false,
+        createdAt: row.created_at
+      };
+    });
+    
+    res.json(products);
   } catch (error) {
+    console.error('Get products error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -236,26 +273,71 @@ app.get('/api/products/:id', async (req, res) => {
 // Create product (with image upload)
 app.post('/api/products', upload.single('image'), async (req, res) => {
   try {
-    const {
-      name, description, sku, category, subcategory,
-      price_retail, price_distributor, price_wholesaler,
-      stock, specifications
-    } = req.body;
+    const productData = req.body;
+    
+    // Support both camelCase and snake_case
+    const name = productData.name || '';
+    const description = productData.description || '';
+    const sku = productData.sku || '';
+    const category = productData.category || '';
+    const unit = productData.unit || 'Piece';
+    const unitsPerCarton = productData.unitsPerCarton || productData.units_per_carton || 1;
+    const priceDistributor = productData.distributorPrice || productData.price_distributor || 0;
+    const priceRetail = Math.round(priceDistributor * 1.25);
+    const stock = productData.stock || 0;
+    const minOrderQty = productData.minOrderQty || productData.min_order_qty || 1;
+    const indications = productData.indications || '';
+    const isActive = productData.isActive !== false;
+    const isFeatured = productData.isFeatured || false;
+    const productId = productData.id || `prod-${Date.now()}`;
+    
+    // Handle image - from upload or from body
+    let imageUrl = req.file ? `/uploads/${req.file.filename}` : (productData.image || null);
 
-    const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+    // Full product data for JSON storage
+    const fullProductData = {
+      id: productId,
+      name,
+      description,
+      category,
+      sku,
+      unit,
+      unitsPerCarton,
+      prices: {
+        distributor: parseFloat(priceDistributor),
+        retail: priceRetail
+      },
+      stock: parseInt(stock),
+      minOrderQty: parseInt(minOrderQty),
+      image: imageUrl,
+      images: imageUrl ? [imageUrl] : [],
+      indications,
+      isActive,
+      isFeatured,
+      createdAt: new Date().toISOString()
+    };
 
     const result = await pool.query(
       `INSERT INTO products 
-       (name, description, sku, category, subcategory, price_retail, price_distributor, 
-        price_wholesaler, stock, image_url, specifications)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (id, name, description, sku, category, unit, units_per_carton,
+        price_retail, price_distributor, stock, min_order_qty, image_url, 
+        indications, active, is_featured, product_data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         description = EXCLUDED.description,
+         image_url = EXCLUDED.image_url,
+         product_data = EXCLUDED.product_data,
+         updated_at = CURRENT_TIMESTAMP
        RETURNING *`,
-      [name, description, sku, category, subcategory, price_retail, price_distributor,
-       price_wholesaler, stock, image_url, specifications || '{}']
+      [productId, name, description, sku, category, unit, unitsPerCarton,
+       priceRetail, priceDistributor, stock, minOrderQty, imageUrl,
+       indications, isActive, isFeatured, JSON.stringify(fullProductData)]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(fullProductData);
   } catch (error) {
+    console.error('Create product error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -263,31 +345,69 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
 // Update product
 app.put('/api/products/:id', upload.single('image'), async (req, res) => {
   try {
-    const {
-      name, description, sku, category, subcategory,
-      price_retail, price_distributor, price_wholesaler,
-      stock, specifications
-    } = req.body;
+    const productData = req.body;
+    const productId = req.params.id;
+    
+    const name = productData.name || '';
+    const description = productData.description || '';
+    const sku = productData.sku || '';
+    const category = productData.category || '';
+    const unit = productData.unit || 'Piece';
+    const unitsPerCarton = productData.unitsPerCarton || productData.units_per_carton || 1;
+    const priceDistributor = productData.distributorPrice || productData.price_distributor || 0;
+    const priceRetail = Math.round(priceDistributor * 1.25);
+    const stock = productData.stock || 0;
+    const minOrderQty = productData.minOrderQty || productData.min_order_qty || 1;
+    const indications = productData.indications || '';
+    const isActive = productData.isActive !== false;
+    const isFeatured = productData.isFeatured || false;
+    
+    // Handle image - from upload, from body, or keep existing
+    let imageUrl = req.file ? `/uploads/${req.file.filename}` : (productData.image || productData.image_url || null);
 
-    const image_url = req.file ? `/uploads/${req.file.filename}` : req.body.image_url;
+    // Full product data for JSON storage
+    const fullProductData = {
+      id: productId,
+      name,
+      description,
+      category,
+      sku,
+      unit,
+      unitsPerCarton,
+      prices: {
+        distributor: parseFloat(priceDistributor),
+        retail: priceRetail
+      },
+      stock: parseInt(stock),
+      minOrderQty: parseInt(minOrderQty),
+      image: imageUrl,
+      images: imageUrl ? [imageUrl] : [],
+      indications,
+      isActive,
+      isFeatured,
+      updatedAt: new Date().toISOString()
+    };
 
     const result = await pool.query(
       `UPDATE products 
-       SET name = $1, description = $2, sku = $3, category = $4, subcategory = $5,
-           price_retail = $6, price_distributor = $7, price_wholesaler = $8,
-           stock = $9, image_url = $10, specifications = $11, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $12
+       SET name = $1, description = $2, sku = $3, category = $4, unit = $5,
+           units_per_carton = $6, price_retail = $7, price_distributor = $8,
+           stock = $9, min_order_qty = $10, image_url = $11, indications = $12,
+           active = $13, is_featured = $14, product_data = $15, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $16
        RETURNING *`,
-      [name, description, sku, category, subcategory, price_retail, price_distributor,
-       price_wholesaler, stock, image_url, specifications || '{}', req.params.id]
+      [name, description, sku, category, unit, unitsPerCarton, priceRetail, priceDistributor,
+       stock, minOrderQty, imageUrl, indications, isActive, isFeatured, 
+       JSON.stringify(fullProductData), productId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json(result.rows[0]);
+    res.json(fullProductData);
   } catch (error) {
+    console.error('Update product error:', error);
     res.status(500).json({ error: error.message });
   }
 });

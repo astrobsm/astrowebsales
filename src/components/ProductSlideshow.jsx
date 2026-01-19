@@ -3,12 +3,17 @@ import { useProductStore } from '../store/productStore';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 export default function ProductSlideshow({ variant = 'hero', autoPlay = true, interval = 4000 }) {
-  const { products, getActiveProducts } = useProductStore();
+  const { products, getActiveProducts, fetchProducts } = useProductStore();
   const activeProducts = getActiveProducts();
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [direction, setDirection] = useState('right');
+
+  // Fetch products from database on mount
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Featured products for slideshow - prioritize featured products
   const slideshowProducts = activeProducts.filter(p => p.isFeatured).length >= 3

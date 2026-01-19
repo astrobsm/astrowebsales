@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Search, Filter, ChevronDown, X, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
@@ -12,8 +12,13 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const { products, categories, getActiveProducts, getProductsByCategory, searchProducts } = useProductStore();
+  const { products, categories, getActiveProducts, getProductsByCategory, searchProducts, fetchProducts } = useProductStore();
   const { addItem, isInCart } = useCartStore();
+
+  // Fetch products from database on mount
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const getFilteredProducts = () => {
     let filtered = [];

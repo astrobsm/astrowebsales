@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { productsApi } from '../services/api';
 
 // Product Categories
 export const PRODUCT_CATEGORIES = [
@@ -544,13 +545,38 @@ export const useProductStore = create(
           (p) =>
             p.isActive &&
             (p.name.toLowerCase().includes(searchTerm) ||
-              p.description.toLowerCase().includes(searchTerm) ||
-              p.sku.toLowerCase().includes(searchTerm))
+              p.description?.toLowerCase().includes(searchTerm) ||
+              p.sku?.toLowerCase().includes(searchTerm))
         );
       },
 
+      // Fetch products from database
+      fetchProducts: async () => {
+        try {
+          const dbProducts = await productsApi.getAll();
+          if (dbProducts && Array.isArray(dbProducts) && dbProducts.length > 0) {
+            // Use database products, merge with local
+            const localProducts = get().products;
+            const mergedProducts = [...dbProducts];
+            
+            // Add any local products not in database
+            localProducts.forEach(localProduct => {
+              if (!mergedProducts.find(p => p.id === localProduct.id)) {
+                mergedProducts.push(localProduct);
+              }
+            });
+            
+            set({ products: mergedProducts });
+            return mergedProducts;
+          }
+        } catch (error) {
+          console.log('Failed to fetch products from database:', error);
+        }
+        return get().products;
+      },
+
       // Admin functions
-      addProduct: (product) => {
+      addProduct: async (product) => {
         const newProduct = {
           ...product,
           id: `prod-${Date.now()}`,
@@ -560,25 +586,44 @@ export const useProductStore = create(
           },
           createdAt: new Date().toISOString()
         };
+        
+        // Save to database
+        try {
+          await productsApi.create(newProduct);
+          console.log('Product saved to database:', newProduct.id);
+        } catch (error) {
+          console.error('Failed to save product to database:', error);
+        }
+        
         set((state) => ({
           products: [...state.products, newProduct]
         }));
         return newProduct;
       },
 
-      updateProduct: (productId, updates) => {
+      updateProduct: async (productId, updates) => {
+        const updatedFields = { ...updates };
+        
+        // Recalculate retail price if distributor price changed
+        if (updates.distributorPrice !== undefined) {
+          updatedFields.prices = {
+            distributor: updates.distributorPrice,
+            retail: calculateRetailPrice(updates.distributorPrice)
+          };
+        }
+        
+        // Save to database
+        try {
+          await productsApi.update(productId, updatedFields);
+          console.log('Product updated in database:', productId);
+        } catch (error) {
+          console.error('Failed to update product in database:', error);
+        }
+        
         set((state) => ({
           products: state.products.map((p) => {
             if (p.id === productId) {
-              const updatedProduct = { ...p, ...updates };
-              // Recalculate retail price if distributor price changed
-              if (updates.distributorPrice !== undefined) {
-                updatedProduct.prices = {
-                  distributor: updates.distributorPrice,
-                  retail: calculateRetailPrice(updates.distributorPrice)
-                };
-              }
-              return updatedProduct;
+              return { ...p, ...updatedFields };
             }
             return p;
           })

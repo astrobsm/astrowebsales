@@ -80,23 +80,61 @@ export const initializeDatabase = async () => {
     // Products table
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
+        id VARCHAR(50) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         description TEXT,
-        sku VARCHAR(100) UNIQUE NOT NULL,
+        sku VARCHAR(100),
         category VARCHAR(100),
         subcategory VARCHAR(100),
+        unit VARCHAR(50) DEFAULT 'Piece',
+        units_per_carton INTEGER DEFAULT 1,
         price_retail DECIMAL(10, 2),
         price_distributor DECIMAL(10, 2),
         price_wholesaler DECIMAL(10, 2),
         stock INTEGER DEFAULT 0,
+        min_order_qty INTEGER DEFAULT 1,
         image_url TEXT,
+        indications TEXT,
         specifications JSONB,
+        is_featured BOOLEAN DEFAULT false,
         active BOOLEAN DEFAULT true,
+        product_data JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // Add new columns if they don't exist (for existing tables)
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_data') THEN
+          ALTER TABLE products ADD COLUMN product_data JSONB;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='indications') THEN
+          ALTER TABLE products ADD COLUMN indications TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='is_featured') THEN
+          ALTER TABLE products ADD COLUMN is_featured BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='unit') THEN
+          ALTER TABLE products ADD COLUMN unit VARCHAR(50) DEFAULT 'Piece';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='units_per_carton') THEN
+          ALTER TABLE products ADD COLUMN units_per_carton INTEGER DEFAULT 1;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='min_order_qty') THEN
+          ALTER TABLE products ADD COLUMN min_order_qty INTEGER DEFAULT 1;
+        END IF;
+      END $$;
+    `);
+    
+    // Drop unique constraint on SKU if it exists (allow duplicates for now)
+    try {
+      await client.query(`ALTER TABLE products DROP CONSTRAINT IF EXISTS products_sku_key`);
+    } catch (e) {
+      // Ignore if constraint doesn't exist
+    }
 
     // Education Articles table
     await client.query(`

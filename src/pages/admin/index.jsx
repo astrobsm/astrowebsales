@@ -716,7 +716,7 @@ export const AdminUsers = () => {
 
 // AdminProducts
 export const AdminProducts = () => {
-  const { products, addProduct, updateProduct, deleteProduct } = useProductStore();
+  const { products, addProduct, updateProduct, deleteProduct, fetchProducts } = useProductStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -724,6 +724,11 @@ export const AdminProducts = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [imagePreview, setImagePreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Fetch products from database on mount
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const categories = [
     { id: 'bandages', name: 'Bandages' },
