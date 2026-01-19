@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Upload, X, Save, Image, Star, StarOff } from 'lucide-react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import { Plus, Edit, Trash2, Search, Upload, X, Save, Image, Star, StarOff, Download, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProductStore } from '../../store/productStore';
 
 // Product Management Component with Image Upload
 const AdminProductManagement = () => {
-  const { products, categories, addProduct, updateProduct, deleteProduct } = useProductStore();
+  // Use shallow selectors to prevent re-renders during form input
+  const products = useProductStore(state => state.products);
+  const categories = useProductStore(state => state.categories);
+  const addProduct = useProductStore(state => state.addProduct);
+  const updateProduct = useProductStore(state => state.updateProduct);
+  const deleteProduct = useProductStore(state => state.deleteProduct);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -100,7 +105,8 @@ const AdminProductManagement = () => {
     resetForm();
   };
 
-  const handleChange = (e) => {
+  // Memoized change handler to prevent focus loss
+  const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     
     if (name.startsWith('prices.')) {
@@ -119,9 +125,32 @@ const AdminProductManagement = () => {
         }
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     }
-  };
+  }, []);
+
+  // Download CSV template for bulk product upload
+  const downloadProductTemplate = useCallback(() => {
+    const headers = ['name', 'sku', 'category', 'description', 'indications', 'unit', 'unitsPerCarton', 'priceRetail', 'priceDistributor', 'priceWholesaler', 'stock', 'minOrder', 'isFeatured', 'isActive'];
+    const sampleData = [
+      ['Coban Bandage 4 inch', 'BSM-CB4-001', 'Bandages', 'High-quality self-adherent bandage', 'For wound care and compression therapy', 'Carton', '12', '46875', '37500', '35000', '100', '1', 'true', 'true'],
+      ['Hera Wound-Gel 100g', 'BSM-HWG-002', 'Wound Gels', 'Advanced wound healing gel', 'For burns, ulcers, and surgical wounds', 'Tube', '1', '4063', '3250', '3000', '300', '1', 'false', 'true'],
+      ['Sterile Dressing Pack', 'BSM-SDP-003', 'Gauze & Dressings', 'Complete sterile dressing pack', 'For wound dressing changes', 'Piece', '1', '750', '600', '550', '500', '1', 'false', 'true']
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...sampleData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'products_template.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.success('Template downloaded! Fill it out and use Bulk Upload to import products.');
+  }, []);
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
@@ -297,10 +326,20 @@ const AdminProductManagement = () => {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-display font-bold text-gray-900">Products Management</h1>
-        <button onClick={() => handleOpenModal()} className="btn-primary flex items-center">
-          <Plus size={20} className="mr-2" />
-          Add Product
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={downloadProductTemplate} 
+            className="btn-secondary flex items-center"
+            title="Download CSV template for bulk product upload"
+          >
+            <Download size={20} className="mr-2" />
+            Template
+          </button>
+          <button onClick={() => handleOpenModal()} className="btn-primary flex items-center">
+            <Plus size={20} className="mr-2" />
+            Add Product
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -400,9 +439,15 @@ const AdminProductManagement = () => {
 
       {/* Product Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={handleCloseModal}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
               <h2 className="text-xl font-display font-semibold">
                 {editingProduct ? 'Edit Product' : 'Add New Product'}
               </h2>
@@ -411,7 +456,7 @@ const AdminProductManagement = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6" onClick={(e) => e.stopPropagation()}>
               {/* Image Upload Section - FIRST */}
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -449,6 +494,7 @@ const AdminProductManagement = () => {
                       />
                     </label>
                     <p className="text-sm text-gray-500 mt-2">JPG, PNG or GIF. Max 5MB.</p>
+                    <p className="text-xs text-blue-600 mt-1 italic">💡 Image is optional - you can add it later by editing the product.</p>
                     
                     {/* Featured in Slideshow */}
                     <div className="flex items-center mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
