@@ -20,6 +20,7 @@ async function runMigration() {
     
     // Add missing columns to products table
     const alterStatements = [
+      // Basic product fields
       {
         sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS sku VARCHAR(100)`,
         description: 'Adding sku column'
@@ -37,6 +38,19 @@ async function runMigration() {
         description: 'Adding subcategory column'
       },
       {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS unit VARCHAR(50)`,
+        description: 'Adding unit column'
+      },
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS units_per_carton INTEGER`,
+        description: 'Adding units_per_carton column'
+      },
+      // Pricing columns
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS price_retail DECIMAL(10, 2)`,
+        description: 'Adding price_retail column'
+      },
+      {
         sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS price_wholesaler DECIMAL(10, 2)`,
         description: 'Adding price_wholesaler column'
       },
@@ -44,17 +58,39 @@ async function runMigration() {
         sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS price_distributor DECIMAL(10, 2)`,
         description: 'Adding price_distributor column'
       },
+      // Inventory columns
       {
-        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS unit VARCHAR(50)`,
-        description: 'Adding unit column'
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 100`,
+        description: 'Adding stock column'
+      },
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS min_order_qty INTEGER DEFAULT 1`,
+        description: 'Adding min_order_qty column'
       },
       {
         sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order INTEGER DEFAULT 1`,
         description: 'Adding minimum_order column'
       },
+      // Additional info columns
       {
         sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT`,
         description: 'Adding image_url column'
+      },
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS indications TEXT`,
+        description: 'Adding indications column'
+      },
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false`,
+        description: 'Adding is_featured column'
+      },
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS product_data JSONB`,
+        description: 'Adding product_data JSON column'
+      },
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+        description: 'Adding updated_at column'
       }
     ];
     
