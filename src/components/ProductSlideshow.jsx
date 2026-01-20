@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useProductStore } from '../store/productStore';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
@@ -150,9 +151,12 @@ export default function ProductSlideshow({ variant = 'hero', autoPlay = true, in
                   ))}
                 </div>
 
-                <button className="bg-accent-500 hover:bg-accent-600 text-white px-8 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg shadow-accent-500/30">
+                <Link 
+                  to="/products" 
+                  className="bg-accent-500 hover:bg-accent-600 text-white px-8 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg shadow-accent-500/30 inline-block"
+                >
                   View Product
-                </button>
+                </Link>
               </div>
             </div>
           </div>

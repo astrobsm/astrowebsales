@@ -91,8 +91,8 @@ const AdminProductManagement = () => {
         specifications: { ...(product.specifications || {}) },
         image: null,
         images: product.images || [],
-        isFeatured: product.isFeatured || false,
-        isActive: product.isActive !== false,
+        isFeatured: Boolean(product.isFeatured),
+        isActive: product.isActive !== false && product.isActive !== 'false',
         unit: product.unit || 'Piece'
       });
       setImagePreview(product.image || null);
