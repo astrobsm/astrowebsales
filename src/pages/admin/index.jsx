@@ -4723,7 +4723,9 @@ export const AdminContent = () => {
               <button
                 onClick={handleSave}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                disabled={!formData.title || !formData.description}
+                disabled={activeTab === 'apps' 
+                  ? (!formData.name || !formData.description || !formData.url)
+                  : (!formData.title || !formData.description)}
               >
                 {modalType === 'add' ? 'Add' : 'Save Changes'}
               </button>
