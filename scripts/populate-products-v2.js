@@ -434,9 +434,9 @@ async function populateProducts() {
         await client.query(`
           INSERT INTO products 
           (id, name, description, sku, category, unit, units_per_carton,
-           price_retail, price_distributor, price_wholesaler, stock, min_order_qty, 
+           price, price_retail, price_distributor, price_wholesaler, stock, min_order_qty, 
            image_url, indications, active, is_featured, product_data)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
           ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
             description = EXCLUDED.description,
@@ -444,6 +444,7 @@ async function populateProducts() {
             category = EXCLUDED.category,
             unit = EXCLUDED.unit,
             units_per_carton = EXCLUDED.units_per_carton,
+            price = EXCLUDED.price,
             price_retail = EXCLUDED.price_retail,
             price_distributor = EXCLUDED.price_distributor,
             price_wholesaler = EXCLUDED.price_wholesaler,
@@ -462,6 +463,7 @@ async function populateProducts() {
           product.category,
           product.unit,
           product.unitsPerCarton,
+          product.prices.retail, // legacy 'price' column - use retail price
           product.prices.retail,
           product.prices.distributor,
           product.prices.wholesaler,
