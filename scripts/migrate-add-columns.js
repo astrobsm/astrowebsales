@@ -1,16 +1,15 @@
+import 'dotenv/config';
 import pg from 'pg';
 const { Pool } = pg;
 
-// Database configuration - uses DATABASE_URL from environment
-if (!process.env.DATABASE_URL) {
-  console.error('❌ DATABASE_URL environment variable is required');
-  console.log('   Set it with: export DATABASE_URL="your-connection-string"');
-  process.exit(1);
-}
-
+// Database configuration - uses same env vars as populate script
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  user: process.env.DB_USER || 'doadmin',
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME || 'defaultdb',
+  password: process.env.DB_PASSWORD,
+  port: parseInt(process.env.DB_PORT) || 25060,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
 });
 
 async function runMigration() {
