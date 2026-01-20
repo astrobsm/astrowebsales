@@ -29,6 +29,10 @@ async function runMigration() {
         description: 'Adding active column'
       },
       {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS category VARCHAR(100)`,
+        description: 'Adding category column'
+      },
+      {
         sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS subcategory VARCHAR(100)`,
         description: 'Adding subcategory column'
       },
@@ -47,6 +51,10 @@ async function runMigration() {
       {
         sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order INTEGER DEFAULT 1`,
         description: 'Adding minimum_order column'
+      },
+      {
+        sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT`,
+        description: 'Adding image_url column'
       }
     ];
     
