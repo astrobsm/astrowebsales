@@ -18,6 +18,26 @@ async function runMigration() {
   try {
     console.log('🔄 Running database migration...\n');
     
+    // First, change id column from integer to varchar if needed
+    const idColumnCheck = await client.query(`
+      SELECT data_type FROM information_schema.columns 
+      WHERE table_name = 'products' AND column_name = 'id'
+    `);
+    
+    if (idColumnCheck.rows[0]?.data_type === 'integer') {
+      console.log('🔄 Converting id column from INTEGER to VARCHAR...');
+      
+      // Drop the default (serial sequence)
+      await client.query(`ALTER TABLE products ALTER COLUMN id DROP DEFAULT`);
+      
+      // Change the column type
+      await client.query(`ALTER TABLE products ALTER COLUMN id TYPE VARCHAR(100) USING id::VARCHAR`);
+      
+      console.log('✅ Changed id column to VARCHAR(100)');
+    } else {
+      console.log('⏭️  id column is already VARCHAR');
+    }
+    
     // Add missing columns to products table
     const alterStatements = [
       // Basic product fields
