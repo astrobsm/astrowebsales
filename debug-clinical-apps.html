@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Clinical Apps Data</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #287d4d;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #287d4d;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .app-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .app-name {
+            font-weight: bold;
+            color: #287d4d;
+            margin-bottom: 5px;
+        }
+        .app-details {
+            font-size: 14px;
+            color: #666;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #287d4d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        button:hover {
+            background: #1f5f39;
+        }
+        button.danger {
+            background: #dc2626;
+        }
+        button.danger:hover {
+            background: #b91c1c;
+        }
+        button.warning {
+            background: #f59e0b;
+        }
+        button.warning:hover {
+            background: #d97706;
+        }
+        .actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .count {
+            background: #287d4d;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Clinical Apps Data Debugger</h1>
+        <p class="subtitle">Debug and sync Clinical Apps data across localStorage and server</p>
+
+        <div class="section">
+            <h2>📊 Current Data Status</h2>
+            <div id="status"></div>
+        </div>
+
+        <div class="section">
+            <h2>💾 LocalStorage Clinical Apps <span class="count" id="localCount">0</span></h2>
+            <div id="localApps"></div>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Default Clinical Apps (from code) <span class="count" id="defaultCount">8</span></h2>
+            <div id="defaultApps"></div>
+        </div>
+
+        <div class="actions">
+            <h3>🛠️ Actions</h3>
+            <button onclick="syncToDefault()">🔄 Reset to Default Apps</button>
+            <button onclick="clearLocalStorage()" class="danger">🗑️ Clear All LocalStorage</button>
+            <button onclick="exportData()" class="warning">💾 Export Current Data</button>
+            <button onclick="location.reload()">🔃 Refresh Page</button>
+        </div>
+    </div>
+
+    <script>
+        // Default apps from the code
+        const DEFAULT_APPS = [
+            {
+                id: 'app-001',
+                name: 'Wound Measure',
+                description: 'AI-powered wound measurement and tracking app. Take photos to automatically measure wound dimensions and track healing progress over time.',
+                category: 'Measurement',
+                platform: 'iOS & Android',
+                price: 'Free',
+                icon: '📏',
+                url: 'https://play.google.com/store/apps/details?id=com.woundmeasure',
+                iosUrl: 'https://apps.apple.com/app/wound-measure/id123456789',
+                featured: true,
+                rating: 4.8
+            },
+            {
+                id: 'app-002',
+                name: 'Braden Scale Calculator',
+                description: 'Calculate pressure ulcer risk using the Braden Scale. Quick and accurate risk assessment for hospitalized patients.',
+                category: 'Assessment',
+                platform: 'Web & Mobile',
+                price: 'Free',
+                icon: '📊',
+                url: 'https://www.bradenscale.com/calculator',
+                featured: true,
+                rating: 4.6
+            },
+            {
+                id: 'app-003',
+                name: 'Wound Care Protocols',
+                description: 'Evidence-based wound care protocols and clinical guidelines. Quick reference for dressing selection and treatment pathways.',
+                category: 'Reference',
+                platform: 'iOS & Android',
+                price: 'Free',
+                icon: '📚',
+                url: 'https://play.google.com/store/apps/details?id=com.woundprotocols',
+                iosUrl: 'https://apps.apple.com/app/wound-protocols/id987654321',
+                featured: true,
+                rating: 4.7
+            },
+            {
+                id: 'app-004',
+                name: 'PUSH Tool 3.0',
+                description: 'Pressure Ulcer Scale for Healing (PUSH) assessment tool. Monitor healing progress with standardized scoring.',
+                category: 'Assessment',
+                platform: 'Web',
+                price: 'Free',
+                icon: '🔬',
+                url: 'https://www.npuap.org/resources/educational-and-clinical-resources/push-tool/',
+                featured: false,
+                rating: 4.5
+            },
+            {
+                id: 'app-005',
+                name: 'WoundMatrix Pro',
+                description: 'Comprehensive wound documentation with photo annotation, treatment tracking, and progress reports for clinical settings.',
+                category: 'Documentation',
+                platform: 'iOS & Android',
+                price: '$9.99/mo',
+                icon: '📋',
+                url: 'https://play.google.com/store/apps/details?id=com.woundmatrix',
+                iosUrl: 'https://apps.apple.com/app/woundmatrix-pro/id456789123',
+                featured: true,
+                rating: 4.9
+            },
+            {
+                id: 'app-006',
+                name: 'Debridement Guide',
+                description: 'Visual guide to debridement techniques with step-by-step instructions and wound type identification.',
+                category: 'Education',
+                platform: 'Web',
+                price: 'Free',
+                icon: '🩺',
+                url: 'https://www.woundsource.com/debridement-guide',
+                featured: false,
+                rating: 4.4
+            },
+            {
+                id: 'app-007',
+                name: 'Drug Interactions Checker',
+                description: 'Check for drug interactions that may affect wound healing. Important for patients on multiple medications.',
+                category: 'Safety',
+                platform: 'Web & Mobile',
+                price: 'Free',
+                icon: '💊',
+                url: 'https://www.drugs.com/drug_interactions.html',
+                featured: false,
+                rating: 4.7
+            },
+            {
+                id: 'app-008',
+                name: 'Nutrition Calculator',
+                description: 'Calculate nutritional requirements for wound healing patients. Includes protein, calorie, and micronutrient recommendations.',
+                category: 'Nutrition',
+                platform: 'Web',
+                price: 'Free',
+                icon: '🥗',
+                url: 'https://www.healingnutrition.com/calculator',
+                featured: false,
+                rating: 4.3
+            }
+        ];
+
+        function getLocalStorageData() {
+            try {
+                const data = localStorage.getItem('content-store');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                return parsed.state?.clinicalApps || null;
+            } catch (e) {
+                console.error('Error reading localStorage:', e);
+                return null;
+            }
+        }
+
+        function displayApps(apps, containerId) {
+            const container = document.getElementById(containerId);
+            if (!apps || apps.length === 0) {
+                container.innerHTML = '<p style="color: #999;">No apps found</p>';
+                return;
+            }
+
+            container.innerHTML = apps.map(app => `
+                <div class="app-card">
+                    <div class="app-name">${app.icon} ${app.name}</div>
+                    <div class="app-details">
+                        <strong>Category:</strong> ${app.category} | 
+                        <strong>Platform:</strong> ${app.platform} | 
+                        <strong>Price:</strong> ${app.price} | 
+                        <strong>Rating:</strong> ${app.rating}
+                        ${app.featured ? ' | <span style="color: #f59e0b;">⭐ Featured</span>' : ''}
+                    </div>
+                    <div class="app-details" style="margin-top: 5px; font-size: 13px;">
+                        ${app.description}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStatus() {
+            const localApps = getLocalStorageData();
+            const statusDiv = document.getElementById('status');
+            
+            if (!localApps) {
+                statusDiv.innerHTML = `
+                    <div class="status error">⚠️ No Clinical Apps data found in localStorage</div>
+                    <p>This could mean the store hasn't been initialized yet. Try visiting the Education page first.</p>
+                `;
+            } else if (localApps.length !== DEFAULT_APPS.length) {
+                statusDiv.innerHTML = `
+                    <div class="status error">❌ Data Mismatch Detected</div>
+                    <p>LocalStorage has ${localApps.length} apps, but default has ${DEFAULT_APPS.length} apps.</p>
+                    <p><strong>Recommendation:</strong> Click "Reset to Default Apps" to sync with the latest version.</p>
+                `;
+            } else {
+                const namesMatch = localApps.every(app => 
+                    DEFAULT_APPS.find(def => def.id === app.id && def.name === app.name)
+                );
+                if (namesMatch) {
+                    statusDiv.innerHTML = `
+                        <div class="status success">✅ Data is synchronized</div>
+                        <p>LocalStorage matches the default Clinical Apps.</p>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="status info">ℹ️ Custom modifications detected</div>
+                        <p>Your localStorage has custom apps or modifications. This is normal if you've added custom apps.</p>
+                    `;
+                }
+            }
+        }
+
+        function syncToDefault() {
+            if (!confirm('This will reset Clinical Apps to the default 8 apps. Any custom additions will be lost. Continue?')) {
+                return;
+            }
+
+            try {
+                const storeData = JSON.parse(localStorage.getItem('content-store') || '{}');
+                if (!storeData.state) storeData.state = {};
+                storeData.state.clinicalApps = DEFAULT_APPS;
+                localStorage.setItem('content-store', JSON.stringify(storeData));
+                
+                alert('✅ Successfully reset to default apps! Refresh the page to see changes.');
+                location.reload();
+            } catch (e) {
+                alert('❌ Error: ' + e.message);
+            }
+        }
+
+        function clearLocalStorage() {
+            if (!confirm('This will clear ALL localStorage data including all content, settings, and auth data. Continue?')) {
+                return;
+            }
+            localStorage.clear();
+            alert('✅ LocalStorage cleared! Refresh the page.');
+            location.reload();
+        }
+
+        function exportData() {
+            const data = {
+                localStorage: getLocalStorageData(),
+                default: DEFAULT_APPS,
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `clinical-apps-debug-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize
+        const localApps = getLocalStorageData();
+        document.getElementById('localCount').textContent = localApps ? localApps.length : 0;
+        displayApps(localApps, 'localApps');
+        displayApps(DEFAULT_APPS, 'defaultApps');
+        updateStatus();
+    </script>
+</body>
+</html>

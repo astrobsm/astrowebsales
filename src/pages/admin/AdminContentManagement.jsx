@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, Video, GraduationCap, Download, Plus, Edit, Trash2, 
-  X, Save, Upload, Eye, Lock, Unlock, RefreshCw, Cloud, CloudOff, Check
+  X, Save, Upload, Eye, Lock, Unlock, RefreshCw, Cloud, CloudOff, Check, Smartphone, ExternalLink, Star
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -10,11 +10,13 @@ import { useContentStore } from '../../store/contentStore';
 const AdminContentManagement = () => {
   const { 
     isAdminAuthenticated, authenticateAdmin, logoutAdmin,
-    articles, videos, training, downloads,
+    articles, videos, training, downloads, clinicalApps,
     addArticle, updateArticle, deleteArticle,
     addVideo, updateVideo, deleteVideo,
     addTraining, updateTraining, deleteTraining,
     addDownload, updateDownload, deleteDownload,
+    addClinicalApp, updateClinicalApp, deleteClinicalApp,
+    resetClinicalAppsToDefault,
     // Sync functions
     fetchContentFromServer, uploadContentToServer,
     isSyncing, lastSyncTime, syncError, isServerSynced
@@ -39,6 +41,10 @@ const AdminContentManagement = () => {
   });
   const [downloadForm, setDownloadForm] = useState({
     title: '', description: '', fileType: 'PDF', fileSize: '', category: ''
+  });
+  const [appForm, setAppForm] = useState({
+    name: '', description: '', category: 'Assessment', platform: 'iOS & Android', 
+    price: 'Free', icon: '📱', url: '', iosUrl: '', featured: false, rating: 4.5
   });
 
   const handleAuthenticate = () => {
@@ -146,12 +152,16 @@ const AdminContentManagement = () => {
         case 'download':
           setDownloadForm({ ...item });
           break;
+        case 'app':
+          setAppForm({ ...item });
+          break;
       }
     } else {
       setArticleForm({ title: '', content: '', excerpt: '', author: '', category: '', featured: false });
       setVideoForm({ title: '', url: '', duration: '', category: '', description: '' });
       setTrainingForm({ title: '', description: '', duration: '', level: '', price: '', modules: '', featured: false });
       setDownloadForm({ title: '', description: '', fileType: 'PDF', fileSize: '', category: '' });
+      setAppForm({ name: '', description: '', category: 'Assessment', platform: 'iOS & Android', price: 'Free', icon: '📱', url: '', iosUrl: '', featured: false, rating: 4.5 });
     }
     
     setShowModal(true);
@@ -188,6 +198,13 @@ const AdminContentManagement = () => {
             addDownload(downloadForm);
           }
           break;
+        case 'app':
+          if (editingItem) {
+            updateClinicalApp(editingItem.id, appForm);
+          } else {
+            addClinicalApp(appForm);
+          }
+          break;
       }
       toast.success(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} saved successfully!`);
       setShowModal(false);
@@ -204,6 +221,7 @@ const AdminContentManagement = () => {
       case 'video': deleteVideo(id); break;
       case 'training': deleteTraining(id); break;
       case 'download': deleteDownload(id); break;
+      case 'app': deleteClinicalApp(id); break;
     }
     toast.success('Deleted successfully!');
   };
@@ -233,7 +251,8 @@ const AdminContentManagement = () => {
     { id: 'articles', label: 'Articles', icon: FileText, count: articles.length },
     { id: 'videos', label: 'Videos', icon: Video, count: videos.length },
     { id: 'training', label: 'Training', icon: GraduationCap, count: training.length },
-    { id: 'downloads', label: 'Downloads', icon: Download, count: downloads.length }
+    { id: 'downloads', label: 'Downloads', icon: Download, count: downloads.length },
+    { id: 'apps', label: 'Clinical Apps', icon: Smartphone, count: clinicalApps.length }
   ];
 
   // Auth Modal
@@ -262,18 +281,33 @@ const AdminContentManagement = () => {
     );
   }
 
+  const handleResetToDefault = () => {
+    if (!window.confirm('This will reset Clinical Apps to default. Any custom additions will be lost. Continue?')) return;
+    resetClinicalAppsToDefault();
+    toast.success('Clinical Apps reset to default');
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-display font-bold text-gray-900">Content Management</h1>
+        <div>
+          <h1 className="text-3xl font-display font-bold text-gray-900">Content Management</h1>
+          <p className="text-gray-600 mt-1">Manage education content - videos, downloads, and training courses</p>
+        </div>
         <div className="flex items-center gap-3">
+          {activeTab === 'apps' && (
+            <button onClick={handleResetToDefault} className="btn-secondary flex items-center text-sm">
+              <RefreshCw size={16} className="mr-2" />
+              Reset to Default
+            </button>
+          )}
           <button onClick={handleLogout} className="btn-secondary flex items-center text-sm">
             <Unlock size={16} className="mr-2" />
             Logout Admin
           </button>
-          <button onClick={() => openModal(activeTab.slice(0, -1))} className="btn-primary flex items-center">
+          <button onClick={() => openModal(activeTab === 'apps' ? 'app' : activeTab.slice(0, -1))} className="btn-primary flex items-center">
             <Plus size={20} className="mr-2" />
-            Add {activeTab.slice(0, -1)}
+            Add {activeTab === 'apps' ? 'Clinical App' : activeTab.slice(0, -1)}
           </button>
         </div>
       </div>
@@ -448,6 +482,49 @@ const AdminContentManagement = () => {
             <h3 className="font-semibold text-gray-900 mb-2">{download.title}</h3>
             <p className="text-sm text-gray-600 mb-3 line-clamp-2">{download.description}</p>
             <p className="text-xs text-gray-400">{download.downloads} downloads</p>
+          </div>
+        ))}
+
+        {activeTab === 'apps' && clinicalApps.map(app => (
+          <div key={app.id} className="card p-6">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl flex items-center justify-center text-2xl">
+                  {app.icon}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">{app.category}</span>
+                    {app.featured && (
+                      <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded font-medium">Featured</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <a href={app.url} target="_blank" rel="noopener noreferrer" className="p-1 hover:bg-green-100 rounded" title="Open App">
+                  <ExternalLink size={16} className="text-green-600" />
+                </a>
+                <button onClick={() => openModal('app', app)} className="p-1 hover:bg-gray-100 rounded">
+                  <Edit size={16} className="text-gray-500" />
+                </button>
+                <button onClick={() => handleDelete('app', app.id)} className="p-1 hover:bg-red-100 rounded">
+                  <Trash2 size={16} className="text-red-500" />
+                </button>
+              </div>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">{app.name}</h3>
+            <p className="text-sm text-gray-600 mb-3 line-clamp-2">{app.description}</p>
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>{app.platform}</span>
+              <div className="flex items-center gap-3">
+                <span className={app.price === 'Free' ? 'text-green-600 font-medium' : 'text-gray-700'}>{app.price}</span>
+                <span className="flex items-center">
+                  <Star size={12} className="text-yellow-400 fill-yellow-400 mr-1" />
+                  {app.rating}
+                </span>
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -662,6 +739,132 @@ const AdminContentManagement = () => {
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg resize-none"
                   />
+                </>
+              )}
+
+              {modalType === 'app' && (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                    <strong>Tip:</strong> Add useful clinical apps for wound care professionals. Include both the main app URL and iOS-specific URL if available. Common icons: 📏 📊 📚 🔬 📋 🩺 💊 🥗 📱 🩹
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="col-span-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                      <input
+                        type="text"
+                        placeholder="📱"
+                        value={appForm.icon}
+                        onChange={(e) => setAppForm({...appForm, icon: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-center text-2xl"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">App Name *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Wound Measure"
+                        value={appForm.name}
+                        onChange={(e) => setAppForm({...appForm, name: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                    <textarea
+                      placeholder="Brief description of the app and its features..."
+                      value={appForm.description}
+                      onChange={(e) => setAppForm({...appForm, description: e.target.value})}
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg resize-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select
+                        value={appForm.category}
+                        onChange={(e) => setAppForm({...appForm, category: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="Measurement">Measurement</option>
+                        <option value="Assessment">Assessment</option>
+                        <option value="Reference">Reference</option>
+                        <option value="Documentation">Documentation</option>
+                        <option value="Education">Education</option>
+                        <option value="Safety">Safety</option>
+                        <option value="Nutrition">Nutrition</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Platform</label>
+                      <select
+                        value={appForm.platform}
+                        onChange={(e) => setAppForm({...appForm, platform: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="Web">Web</option>
+                        <option value="iOS">iOS</option>
+                        <option value="Android">Android</option>
+                        <option value="iOS & Android">iOS & Android</option>
+                        <option value="Web & Mobile">Web & Mobile</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Free or $9.99/mo"
+                        value={appForm.price}
+                        onChange={(e) => setAppForm({...appForm, price: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="5"
+                        placeholder="4.5"
+                        value={appForm.rating}
+                        onChange={(e) => setAppForm({...appForm, rating: parseFloat(e.target.value) || 0})}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">App URL *</label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={appForm.url}
+                      onChange={(e) => setAppForm({...appForm, url: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">iOS-specific URL (Optional)</label>
+                    <input
+                      type="url"
+                      placeholder="https://apps.apple.com/..."
+                      value={appForm.iosUrl}
+                      onChange={(e) => setAppForm({...appForm, iosUrl: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={appForm.featured}
+                      onChange={(e) => setAppForm({...appForm, featured: e.target.checked})}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Featured app (shown on homepage)</span>
+                  </label>
                 </>
               )}
 
