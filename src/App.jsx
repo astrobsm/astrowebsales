@@ -72,20 +72,35 @@ function App() {
     initSync();
     
     // Fetch content from server on app load
-    fetchContentFromServer();
+    fetchContentFromServer().then(success => {
+      if (success) {
+        console.log('✅ Content loaded from server');
+      } else {
+        console.log('⚠️ Using local content (server sync failed or empty)');
+      }
+    });
     
     // Listen for content sync events from other devices
     const handleStateUpdate = (data) => {
-      if (data.store === 'content') {
+      console.log('📥 Received state update:', data);
+      if (data.store === 'content' && data.payload) {
         handleContentSync(data.payload);
       }
     };
     
+    // Listen for full sync from other devices
+    const handleFullSync = (event) => {
+      console.log('📥 Full sync received, refreshing content from server');
+      fetchContentFromServer();
+    };
+    
     syncService.on('state-update', handleStateUpdate);
+    window.addEventListener('full-sync', handleFullSync);
     
     return () => {
       cleanup();
       syncService.off('state-update', handleStateUpdate);
+      window.removeEventListener('full-sync', handleFullSync);
     };
   }, [initSync, cleanup, fetchContentFromServer, handleContentSync]);
 

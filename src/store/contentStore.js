@@ -14448,7 +14448,10 @@ export const useContentStore = create(
       fetchContentFromServer: async () => {
         try {
           set({ isSyncing: true, syncError: null });
+          console.log('🔄 Fetching content from server...');
           const serverContent = await contentApi.syncAll();
+          
+          console.log('📦 Server response:', serverContent);
           
           // Only update if server has content
           if (serverContent) {
@@ -14456,15 +14459,19 @@ export const useContentStore = create(
             
             if (serverContent.clinicalApps && serverContent.clinicalApps.length > 0) {
               updates.clinicalApps = serverContent.clinicalApps;
+              console.log(`   - ${serverContent.clinicalApps.length} clinical apps`);
             }
             if (serverContent.training && serverContent.training.length > 0) {
               updates.training = serverContent.training;
+              console.log(`   - ${serverContent.training.length} training courses`);
             }
             if (serverContent.offices && serverContent.offices.length > 0) {
               updates.offices = serverContent.offices;
+              console.log(`   - ${serverContent.offices.length} offices`);
             }
             if (serverContent.downloads && serverContent.downloads.length > 0) {
               updates.downloads = serverContent.downloads;
+              console.log(`   - ${serverContent.downloads.length} downloads`);
             }
             
             if (Object.keys(updates).length > 0) {
@@ -14474,6 +14481,8 @@ export const useContentStore = create(
                 isServerSynced: true 
               });
               console.log('✅ Content synced from server:', Object.keys(updates));
+            } else {
+              console.log('ℹ️ Server has no content, using local defaults');
             }
           }
           
@@ -14861,10 +14870,12 @@ export const useContentStore = create(
         
         // Sync to server
         try {
+          console.log('📤 Saving clinical app to server:', newApp.name);
           await contentApi.createClinicalApp(newApp);
           get().broadcastContentChange('clinicalApps', 'add', newApp);
+          console.log('✅ Clinical app saved to server');
         } catch (error) {
-          console.error('Failed to sync clinical app to server:', error);
+          console.error('❌ Failed to sync clinical app to server:', error);
         }
       },
 
@@ -14877,10 +14888,12 @@ export const useContentStore = create(
         
         // Sync to server
         try {
+          console.log('📤 Updating clinical app on server:', id);
           await contentApi.updateClinicalApp(id, updates);
           get().broadcastContentChange('clinicalApps', 'update', { id, ...updates });
+          console.log('✅ Clinical app updated on server');
         } catch (error) {
-          console.error('Failed to sync clinical app update to server:', error);
+          console.error('❌ Failed to sync clinical app update to server:', error);
         }
       },
 
@@ -14891,10 +14904,12 @@ export const useContentStore = create(
         
         // Sync to server
         try {
+          console.log('📤 Deleting clinical app from server:', id);
           await contentApi.deleteClinicalApp(id);
           get().broadcastContentChange('clinicalApps', 'delete', { id });
+          console.log('✅ Clinical app deleted from server');
         } catch (error) {
-          console.error('Failed to sync clinical app deletion to server:', error);
+          console.error('❌ Failed to sync clinical app deletion to server:', error);
         }
       },
 
