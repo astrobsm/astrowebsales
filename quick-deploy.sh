@@ -146,19 +146,19 @@ async function migrate() {
     \`);
     console.log('✅ products table ready');
 
-    // Create orders table if not exists
+    // Create orders table if not exists - with VARCHAR id for UUID support
     await client.query(\`
       CREATE TABLE IF NOT EXISTS orders (
-        id SERIAL PRIMARY KEY,
-        order_number VARCHAR(100) UNIQUE NOT NULL,
-        customer_name VARCHAR(255) NOT NULL,
+        id VARCHAR(100) PRIMARY KEY,
+        order_number VARCHAR(100) UNIQUE,
+        customer_name VARCHAR(255),
         customer_email VARCHAR(255),
         customer_phone VARCHAR(50),
         customer_address TEXT,
-        items JSONB NOT NULL,
+        items JSONB,
         subtotal DECIMAL(10, 2),
         tax DECIMAL(10, 2) DEFAULT 0,
-        total DECIMAL(10, 2) NOT NULL,
+        total DECIMAL(10, 2),
         status VARCHAR(50) DEFAULT 'pending',
         payment_method VARCHAR(50),
         payment_status VARCHAR(50) DEFAULT 'pending',
@@ -168,6 +168,27 @@ async function migrate() {
       )
     \`);
     console.log('✅ orders table ready');
+
+    // Fix id column type if it's integer (change to VARCHAR for UUID support)
+    await client.query(\`
+      DO \$\$
+      BEGIN
+        -- Check if id column is integer type and alter it
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'orders' AND column_name = 'id' 
+          AND data_type IN ('integer', 'bigint')
+        ) THEN
+          -- Drop the primary key constraint first
+          ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_pkey;
+          -- Change id column to VARCHAR
+          ALTER TABLE orders ALTER COLUMN id TYPE VARCHAR(100) USING id::VARCHAR;
+          -- Re-add primary key
+          ALTER TABLE orders ADD PRIMARY KEY (id);
+        END IF;
+      END \$\$;
+    \`);
+    console.log('✅ orders id column type verified');
 
     // Add missing columns to orders table if they don't exist
     await client.query(\`
