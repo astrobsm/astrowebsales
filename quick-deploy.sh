@@ -8,7 +8,7 @@ echo "🚀 ASTROBSM Quick Deployment"
 echo "=============================="
 
 # Navigate to app directory
-cd /var/www/astrobsm
+cd /var/www/astrowebsales
 
 # Pull latest changes from GitHub
 echo "📥 Pulling latest changes from GitHub..."
