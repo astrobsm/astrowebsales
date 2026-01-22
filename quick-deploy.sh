@@ -179,8 +179,10 @@ async function migrate() {
           WHERE table_name = 'orders' AND column_name = 'id' 
           AND data_type IN ('integer', 'bigint')
         ) THEN
-          -- Drop the primary key constraint first
-          ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_pkey;
+          -- Drop the primary key constraint first with CASCADE
+          ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_pkey CASCADE;
+          -- Drop any default sequence
+          ALTER TABLE orders ALTER COLUMN id DROP DEFAULT;
           -- Change id column to VARCHAR
           ALTER TABLE orders ALTER COLUMN id TYPE VARCHAR(100) USING id::VARCHAR;
           -- Re-add primary key
