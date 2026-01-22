@@ -4,6 +4,9 @@ import { useSyncStore } from './store/syncStore';
 import { useContentStore } from './store/contentStore';
 import syncService from './services/syncService';
 
+// Auto Sync Component
+import { AutoSyncProvider } from './components/shared/AutoSyncManager';
+
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -130,117 +133,119 @@ function App() {
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      {/* PWA Install Prompt */}
-      <InstallPrompt />
-      
-      <Routes>
-        {/* Public Routes */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/education" element={<Education />} />
-          <Route path="/seminars" element={<Seminars />} />
-          <Route path="/seminars/register/:id" element={<SeminarRegistration />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/become-distributor" element={<BecomeDistributor />} />
-        </Route>
+      <AutoSyncProvider>
+        {/* PWA Install Prompt */}
+        <InstallPrompt />
+        
+        <Routes>
+          {/* Public Routes */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/education" element={<Education />} />
+            <Route path="/seminars" element={<Seminars />} />
+            <Route path="/seminars/register/:id" element={<SeminarRegistration />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/become-distributor" element={<BecomeDistributor />} />
+          </Route>
 
-        {/* Auth Routes */}
-        <Route path="/retail-access" element={<RetailAccess />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/staff-login" element={<StaffLogin />} />
+          {/* Auth Routes */}
+          <Route path="/retail-access" element={<RetailAccess />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/staff-login" element={<StaffLogin />} />
 
-        {/* Retail Customer Routes */}
-        <Route path="/shop" element={<RetailProducts />} />
-        <Route path="/cart" element={<RetailCart />} />
-        <Route path="/checkout" element={<RetailCheckout />} />
-        <Route path="/order-confirmation/:orderId" element={<RetailOrderConfirmation />} />
-        <Route path="/track-order/:orderId" element={<RetailOrderTracking />} />
+          {/* Retail Customer Routes */}
+          <Route path="/shop" element={<RetailProducts />} />
+          <Route path="/cart" element={<RetailCart />} />
+          <Route path="/checkout" element={<RetailCheckout />} />
+          <Route path="/order-confirmation/:orderId" element={<RetailOrderConfirmation />} />
+          <Route path="/track-order/:orderId" element={<RetailOrderTracking />} />
 
-        {/* Admin Dashboard Routes */}
-        <Route path="/admin" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <DashboardLayout role="admin" />
-          </ProtectedRoute>
-        }>
-          <Route index element={<AdminDashboard />} />
-          <Route path="analytics" element={<AdminAnalytics />} />
-          <Route path="staff" element={<AdminStaffManagement />} />
-          <Route path="partners" element={<AdminPartnerManagement />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="products" element={<AdminProducts />} />
-          <Route path="orders" element={<AdminOrders />} />
-          <Route path="distributors" element={<AdminDistributors />} />
-          <Route path="feedback" element={<StaffFeedback canRespond={true} />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="content" element={<AdminContent />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="access-settings" element={<AdminAccessSettings />} />
-          <Route path="data-sync" element={<AdminDataSync />} />
-        </Route>
+          {/* Admin Dashboard Routes */}
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <DashboardLayout role="admin" />
+            </ProtectedRoute>
+          }>
+            <Route index element={<AdminDashboard />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="staff" element={<AdminStaffManagement />} />
+            <Route path="partners" element={<AdminPartnerManagement />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="distributors" element={<AdminDistributors />} />
+            <Route path="feedback" element={<StaffFeedback canRespond={true} />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="content" element={<AdminContent />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="access-settings" element={<AdminAccessSettings />} />
+            <Route path="data-sync" element={<AdminDataSync />} />
+          </Route>
 
-        {/* Distributor Dashboard Routes */}
-        <Route path="/distributor" element={
-          <ProtectedRoute allowedRoles={['distributor']}>
-            <DashboardLayout role="distributor" />
-          </ProtectedRoute>
-        }>
-          <Route index element={<DistributorDashboard />} />
-          <Route path="orders" element={<DistributorOrders />} />
-          <Route path="inventory" element={<DistributorInventory />} />
-          <Route path="feedback" element={<StaffFeedback canRespond={true} />} />
-          <Route path="history" element={<DistributorHistory />} />
-        </Route>
+          {/* Distributor Dashboard Routes */}
+          <Route path="/distributor" element={
+            <ProtectedRoute allowedRoles={['distributor']}>
+              <DashboardLayout role="distributor" />
+            </ProtectedRoute>
+          }>
+            <Route index element={<DistributorDashboard />} />
+            <Route path="orders" element={<DistributorOrders />} />
+            <Route path="inventory" element={<DistributorInventory />} />
+            <Route path="feedback" element={<StaffFeedback canRespond={true} />} />
+            <Route path="history" element={<DistributorHistory />} />
+          </Route>
 
-        {/* Wholesaler Dashboard Routes */}
-        <Route path="/wholesaler" element={
-          <ProtectedRoute allowedRoles={['wholesaler']}>
-            <DashboardLayout role="wholesaler" />
-          </ProtectedRoute>
-        }>
-          <Route index element={<WholesalerDashboard />} />
-          <Route path="orders" element={<WholesalerOrders />} />
-          <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
-        </Route>
+          {/* Wholesaler Dashboard Routes */}
+          <Route path="/wholesaler" element={
+            <ProtectedRoute allowedRoles={['wholesaler']}>
+              <DashboardLayout role="wholesaler" />
+            </ProtectedRoute>
+          }>
+            <Route index element={<WholesalerDashboard />} />
+            <Route path="orders" element={<WholesalerOrders />} />
+            <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
+          </Route>
 
-        {/* Customer Care Officer Dashboard Routes */}
-        <Route path="/cco" element={
-          <ProtectedRoute allowedRoles={['cco']}>
-            <DashboardLayout role="cco" />
-          </ProtectedRoute>
-        }>
-          <Route index element={<CCODashboard />} />
-          <Route path="feedback" element={<CCOFeedback />} />
-          <Route path="escalations" element={<CCOEscalations />} />
-          <Route path="communications" element={<CCOCommunications />} />
-        </Route>
+          {/* Customer Care Officer Dashboard Routes */}
+          <Route path="/cco" element={
+            <ProtectedRoute allowedRoles={['cco']}>
+              <DashboardLayout role="cco" />
+            </ProtectedRoute>
+          }>
+            <Route index element={<CCODashboard />} />
+            <Route path="feedback" element={<CCOFeedback />} />
+            <Route path="escalations" element={<CCOEscalations />} />
+            <Route path="communications" element={<CCOCommunications />} />
+          </Route>
 
-        {/* Marketer Dashboard Routes */}
-        <Route path="/marketer" element={
-          <ProtectedRoute allowedRoles={['marketer']}>
-            <DashboardLayout role="marketer" />
-          </ProtectedRoute>
-        }>
-          <Route index element={<MarketerDashboard />} />
-          <Route path="leads" element={<MarketerLeads />} />
-          <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
-          <Route path="reports" element={<MarketerReports />} />
-        </Route>
+          {/* Marketer Dashboard Routes */}
+          <Route path="/marketer" element={
+            <ProtectedRoute allowedRoles={['marketer']}>
+              <DashboardLayout role="marketer" />
+            </ProtectedRoute>
+          }>
+            <Route index element={<MarketerDashboard />} />
+            <Route path="leads" element={<MarketerLeads />} />
+            <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
+            <Route path="reports" element={<MarketerReports />} />
+          </Route>
 
-        {/* Sales Dashboard Routes */}
-        <Route path="/sales" element={
-          <ProtectedRoute allowedRoles={['sales']}>
-            <DashboardLayout role="sales" />
-          </ProtectedRoute>
-        }>
-          <Route index element={<SalesDashboard />} />
-          <Route path="orders" element={<SalesOrders />} />
-          <Route path="customers" element={<SalesCustomers />} />
-          <Route path="products" element={<SalesProducts />} />
-          <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
-        </Route>
-      </Routes>
+          {/* Sales Dashboard Routes */}
+          <Route path="/sales" element={
+            <ProtectedRoute allowedRoles={['sales']}>
+              <DashboardLayout role="sales" />
+            </ProtectedRoute>
+          }>
+            <Route index element={<SalesDashboard />} />
+            <Route path="orders" element={<SalesOrders />} />
+            <Route path="customers" element={<SalesCustomers />} />
+            <Route path="products" element={<SalesProducts />} />
+            <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
+          </Route>
+        </Routes>
+      </AutoSyncProvider>
     </Router>
   );
 }
