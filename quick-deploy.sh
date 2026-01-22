@@ -230,12 +230,12 @@ migrate();
 
 # Restart the application with PM2
 echo "🔄 Restarting application..."
-pm2 restart astrobsm || pm2 start ecosystem.config.cjs
+pm2 restart astrowebsales || pm2 start ecosystem.config.cjs
 
 # Show status
 echo ""
 echo "✅ Deployment Complete!"
 echo "=============================="
-pm2 status astrobsm
+pm2 status astrowebsales
 echo ""
-echo "📋 View logs: pm2 logs astrobsm"
+echo "📋 View logs: pm2 logs astrowebsales"
