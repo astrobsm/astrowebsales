@@ -188,11 +188,23 @@ async function migrate() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'customer_address') THEN
           ALTER TABLE orders ADD COLUMN customer_address TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'customer_state') THEN
+          ALTER TABLE orders ADD COLUMN customer_state VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'customer_city') THEN
+          ALTER TABLE orders ADD COLUMN customer_city VARCHAR(100);
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'items') THEN
           ALTER TABLE orders ADD COLUMN items JSONB;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'subtotal') THEN
           ALTER TABLE orders ADD COLUMN subtotal DECIMAL(10, 2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'delivery_fee') THEN
+          ALTER TABLE orders ADD COLUMN delivery_fee DECIMAL(10, 2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'total_amount') THEN
+          ALTER TABLE orders ADD COLUMN total_amount DECIMAL(10, 2);
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'tax') THEN
           ALTER TABLE orders ADD COLUMN tax DECIMAL(10, 2) DEFAULT 0;
@@ -200,8 +212,23 @@ async function migrate() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'total') THEN
           ALTER TABLE orders ADD COLUMN total DECIMAL(10, 2);
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'urgency_level') THEN
+          ALTER TABLE orders ADD COLUMN urgency_level VARCHAR(50);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'delivery_option') THEN
+          ALTER TABLE orders ADD COLUMN delivery_option VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'distributor_id') THEN
+          ALTER TABLE orders ADD COLUMN distributor_id VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'distributor_name') THEN
+          ALTER TABLE orders ADD COLUMN distributor_name VARCHAR(255);
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'status') THEN
           ALTER TABLE orders ADD COLUMN status VARCHAR(50) DEFAULT 'pending';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'order_data') THEN
+          ALTER TABLE orders ADD COLUMN order_data JSONB;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'payment_method') THEN
           ALTER TABLE orders ADD COLUMN payment_method VARCHAR(50);
