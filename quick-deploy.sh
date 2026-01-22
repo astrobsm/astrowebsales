@@ -169,6 +169,53 @@ async function migrate() {
     \`);
     console.log('✅ orders table ready');
 
+    // Add missing columns to orders table if they don't exist
+    await client.query(\`
+      DO \$\$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'order_number') THEN
+          ALTER TABLE orders ADD COLUMN order_number VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'customer_name') THEN
+          ALTER TABLE orders ADD COLUMN customer_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'customer_email') THEN
+          ALTER TABLE orders ADD COLUMN customer_email VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'customer_phone') THEN
+          ALTER TABLE orders ADD COLUMN customer_phone VARCHAR(50);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'customer_address') THEN
+          ALTER TABLE orders ADD COLUMN customer_address TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'items') THEN
+          ALTER TABLE orders ADD COLUMN items JSONB;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'subtotal') THEN
+          ALTER TABLE orders ADD COLUMN subtotal DECIMAL(10, 2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'tax') THEN
+          ALTER TABLE orders ADD COLUMN tax DECIMAL(10, 2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'total') THEN
+          ALTER TABLE orders ADD COLUMN total DECIMAL(10, 2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'status') THEN
+          ALTER TABLE orders ADD COLUMN status VARCHAR(50) DEFAULT 'pending';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'payment_method') THEN
+          ALTER TABLE orders ADD COLUMN payment_method VARCHAR(50);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'payment_status') THEN
+          ALTER TABLE orders ADD COLUMN payment_status VARCHAR(50) DEFAULT 'pending';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'notes') THEN
+          ALTER TABLE orders ADD COLUMN notes TEXT;
+        END IF;
+      END \$\$;
+    \`);
+    console.log('✅ orders table columns verified');
+
     client.release();
     console.log('✅ All migrations complete!');
     process.exit(0);
