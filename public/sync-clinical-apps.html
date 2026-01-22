@@ -170,7 +170,7 @@
 
         <div class="info-card">
             <h3>✨ Expected Default Apps</h3>
-            <div class="count">8</div>
+            <div class="count">5</div>
             <div class="label">Standard Clinical Apps</div>
             <div class="apps-list" id="defaultAppsList"></div>
         </div>
@@ -180,7 +180,7 @@
         <div class="actions">
             <button class="btn btn-primary" onclick="resetToDefault()">
                 <span id="resetIcon">🔄</span>
-                <span id="resetText">Reset to Default (8 Apps)</span>
+                <span id="resetText">Reset to Default (5 Apps)</span>
             </button>
             <button class="btn btn-secondary" onclick="location.reload()">
                 🔃 Refresh Status
@@ -192,21 +192,18 @@
 
         <div style="margin-top: 30px; padding: 20px; background: #fef3c7; border-radius: 12px; border-left: 4px solid #f59e0b;">
             <p style="color: #92400e; font-size: 13px; line-height: 1.6;">
-                <strong>💡 Tip:</strong> If you're seeing different apps on different devices, click "Reset to Default" on each device to sync them all to the same 8 standard apps.
+                <strong>💡 Tip:</strong> If you're seeing different apps on different devices, click "Reset to Default" on each device to sync them all to the same 5 standard apps.
             </p>
         </div>
     </div>
 
     <script>
         const DEFAULT_APPS = [
-            { id: 'app-001', name: 'Wound Measure', icon: '📏', category: 'Measurement', featured: true },
+            { id: 'app-001', name: 'CRITICAL CARE CALCULATOR', icon: '📏', category: 'Measurement', featured: true },
             { id: 'app-002', name: 'Braden Scale Calculator', icon: '📊', category: 'Assessment', featured: true },
             { id: 'app-003', name: 'Wound Care Protocols', icon: '📚', category: 'Reference', featured: true },
-            { id: 'app-004', name: 'PUSH Tool 3.0', icon: '🔬', category: 'Assessment', featured: false },
-            { id: 'app-005', name: 'WoundMatrix Pro', icon: '📋', category: 'Documentation', featured: true },
-            { id: 'app-006', name: 'Debridement Guide', icon: '🩺', category: 'Education', featured: false },
-            { id: 'app-007', name: 'Drug Interactions Checker', icon: '💊', category: 'Safety', featured: false },
-            { id: 'app-008', name: 'Nutrition Calculator', icon: '🥗', category: 'Nutrition', featured: false }
+            { id: 'app-004', name: 'Drug Interactions Checker', icon: '💊', category: 'Safety', featured: false },
+            { id: 'app-005', name: 'AstroWound-MEASURE', icon: '📱', category: 'Assessment', featured: true }
         ];
 
         function getLocalApps() {
@@ -228,15 +225,15 @@
                 container.innerHTML = `
                     <div class="status-box info">
                         <h3>ℹ️ No Data Found</h3>
-                        <p>No Clinical Apps data found in localStorage. The app will use default data automatically. Click "Reset to Default" to explicitly set the 8 standard apps.</p>
+                        <p>No Clinical Apps data found in localStorage. The app will use default data automatically. Click "Reset to Default" to explicitly set the 5 standard apps.</p>
                     </div>
                 `;
-            } else if (localApps.length !== 8) {
+            } else if (localApps.length !== 5) {
                 container.innerHTML = `
                     <div class="status-box error">
                         <h3>⚠️ Data Mismatch Detected</h3>
-                        <p>Found ${localApps.length} apps in storage, but expected 8 default apps. This device may have custom or outdated data.</p>
-                        <p style="margin-top: 10px;"><strong>Action Required:</strong> Click "Reset to Default" to sync with the standard 8 apps.</p>
+                        <p>Found ${localApps.length} apps in storage, but expected 5 default apps. This device may have custom or outdated data.</p>
+                        <p style="margin-top: 10px;"><strong>Action Required:</strong> Click "Reset to Default" to sync with the standard 5 apps.</p>
                     </div>
                 `;
             } else {
@@ -249,14 +246,14 @@
                     container.innerHTML = `
                         <div class="status-box success">
                             <h3>✅ Perfect Sync</h3>
-                            <p>This device has all 8 default Clinical Apps correctly synchronized. No action needed!</p>
+                            <p>This device has all 5 default Clinical Apps correctly synchronized. No action needed!</p>
                         </div>
                     `;
                 } else {
                     container.innerHTML = `
                         <div class="status-box error">
                             <h3>🔄 Outdated Data</h3>
-                            <p>You have 8 apps but some don't match the current defaults. Click "Reset to Default" to update.</p>
+                            <p>You have 5 apps but some don't match the current defaults. Click "Reset to Default" to update.</p>
                         </div>
                     `;
                 }
@@ -280,7 +277,7 @@
             const icon = document.getElementById('resetIcon');
             const text = document.getElementById('resetText');
             
-            if (!confirm('Reset Clinical Apps to the 8 default apps?\n\nThis will replace any custom apps with the standard set.')) {
+            if (!confirm('Reset Clinical Apps to the 5 default apps?\n\nThis will replace any custom apps with the standard set.')) {
                 return;
             }
 
@@ -294,14 +291,14 @@
                 const FULL_DEFAULT_APPS = [
                     {
                         id: 'app-001',
-                        name: 'Wound Measure',
-                        description: 'AI-powered wound measurement and tracking app. Take photos to automatically measure wound dimensions and track healing progress over time.',
+                        name: 'CRITICAL CARE CALCULATOR',
+                        description: 'A CLINICAL COMPANION GUIDE IN THE DAY TO DAY CARE OF PATIENTS',
                         category: 'Measurement',
-                        platform: 'iOS & Android',
+                        platform: 'Web & Mobile',
                         price: 'Free',
                         icon: '📏',
-                        url: 'https://play.google.com/store/apps/details?id=com.woundmeasure',
-                        iosUrl: 'https://apps.apple.com/app/wound-measure/id123456789',
+                        url: 'https://criticalcarecalculator.com',
+                        iosUrl: '',
                         featured: true,
                         rating: 4.8
                     },
@@ -314,6 +311,7 @@
                         price: 'Free',
                         icon: '📊',
                         url: 'https://www.bradenscale.com/calculator',
+                        iosUrl: '',
                         featured: true,
                         rating: 4.6
                     },
@@ -332,43 +330,6 @@
                     },
                     {
                         id: 'app-004',
-                        name: 'PUSH Tool 3.0',
-                        description: 'Pressure Ulcer Scale for Healing (PUSH) assessment tool. Monitor healing progress with standardized scoring.',
-                        category: 'Assessment',
-                        platform: 'Web',
-                        price: 'Free',
-                        icon: '🔬',
-                        url: 'https://www.npuap.org/resources/educational-and-clinical-resources/push-tool/',
-                        featured: false,
-                        rating: 4.5
-                    },
-                    {
-                        id: 'app-005',
-                        name: 'WoundMatrix Pro',
-                        description: 'Comprehensive wound documentation with photo annotation, treatment tracking, and progress reports for clinical settings.',
-                        category: 'Documentation',
-                        platform: 'iOS & Android',
-                        price: '$9.99/mo',
-                        icon: '📋',
-                        url: 'https://play.google.com/store/apps/details?id=com.woundmatrix',
-                        iosUrl: 'https://apps.apple.com/app/woundmatrix-pro/id456789123',
-                        featured: true,
-                        rating: 4.9
-                    },
-                    {
-                        id: 'app-006',
-                        name: 'Debridement Guide',
-                        description: 'Visual guide to debridement techniques with step-by-step instructions and wound type identification.',
-                        category: 'Education',
-                        platform: 'Web',
-                        price: 'Free',
-                        icon: '🩺',
-                        url: 'https://www.woundsource.com/debridement-guide',
-                        featured: false,
-                        rating: 4.4
-                    },
-                    {
-                        id: 'app-007',
                         name: 'Drug Interactions Checker',
                         description: 'Check for drug interactions that may affect wound healing. Important for patients on multiple medications.',
                         category: 'Safety',
@@ -376,20 +337,22 @@
                         price: 'Free',
                         icon: '💊',
                         url: 'https://www.drugs.com/drug_interactions.html',
+                        iosUrl: '',
                         featured: false,
                         rating: 4.7
                     },
                     {
-                        id: 'app-008',
-                        name: 'Nutrition Calculator',
-                        description: 'Calculate nutritional requirements for wound healing patients. Includes protein, calorie, and micronutrient recommendations.',
-                        category: 'Nutrition',
-                        platform: 'Web',
+                        id: 'app-005',
+                        name: 'AstroWound-MEASURE',
+                        description: 'Clinical Wound Assessment',
+                        category: 'Assessment',
+                        platform: 'Web & Mobile',
                         price: 'Free',
-                        icon: '🥗',
-                        url: 'https://www.healingnutrition.com/calculator',
-                        featured: false,
-                        rating: 4.3
+                        icon: '📱',
+                        url: 'https://astrowound.com/measure',
+                        iosUrl: '',
+                        featured: true,
+                        rating: 4.5
                     }
                 ];
 

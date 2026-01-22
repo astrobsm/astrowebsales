@@ -14311,14 +14311,14 @@ const OFFICES = [
 const CLINICAL_APPS = [
   {
     id: 'app-001',
-    name: 'Wound Measure',
-    description: 'AI-powered wound measurement and tracking app. Take photos to automatically measure wound dimensions and track healing progress over time.',
+    name: 'CRITICAL CARE CALCULATOR',
+    description: 'A CLINICAL COMPANION GUIDE IN THE DAY TO DAY CARE OF PATIENTS',
     category: 'Measurement',
-    platform: 'iOS & Android',
+    platform: 'Web & Mobile',
     price: 'Free',
     icon: '📏',
-    url: 'https://play.google.com/store/apps/details?id=com.woundmeasure',
-    iosUrl: 'https://apps.apple.com/app/wound-measure/id123456789',
+    url: 'https://criticalcarecalculator.com',
+    iosUrl: '',
     featured: true,
     rating: 4.8
   },
@@ -14331,6 +14331,7 @@ const CLINICAL_APPS = [
     price: 'Free',
     icon: '📊',
     url: 'https://www.bradenscale.com/calculator',
+    iosUrl: '',
     featured: true,
     rating: 4.6
   },
@@ -14349,43 +14350,6 @@ const CLINICAL_APPS = [
   },
   {
     id: 'app-004',
-    name: 'PUSH Tool 3.0',
-    description: 'Pressure Ulcer Scale for Healing (PUSH) assessment tool. Monitor healing progress with standardized scoring.',
-    category: 'Assessment',
-    platform: 'Web',
-    price: 'Free',
-    icon: '🔬',
-    url: 'https://www.npuap.org/resources/educational-and-clinical-resources/push-tool/',
-    featured: false,
-    rating: 4.5
-  },
-  {
-    id: 'app-005',
-    name: 'WoundMatrix Pro',
-    description: 'Comprehensive wound documentation with photo annotation, treatment tracking, and progress reports for clinical settings.',
-    category: 'Documentation',
-    platform: 'iOS & Android',
-    price: '$9.99/mo',
-    icon: '📋',
-    url: 'https://play.google.com/store/apps/details?id=com.woundmatrix',
-    iosUrl: 'https://apps.apple.com/app/woundmatrix-pro/id456789123',
-    featured: true,
-    rating: 4.9
-  },
-  {
-    id: 'app-006',
-    name: 'Debridement Guide',
-    description: 'Visual guide to debridement techniques with step-by-step instructions and wound type identification.',
-    category: 'Education',
-    platform: 'Web',
-    price: 'Free',
-    icon: '🩺',
-    url: 'https://www.woundsource.com/debridement-guide',
-    featured: false,
-    rating: 4.4
-  },
-  {
-    id: 'app-007',
     name: 'Drug Interactions Checker',
     description: 'Check for drug interactions that may affect wound healing. Important for patients on multiple medications.',
     category: 'Safety',
@@ -14393,20 +14357,22 @@ const CLINICAL_APPS = [
     price: 'Free',
     icon: '💊',
     url: 'https://www.drugs.com/drug_interactions.html',
+    iosUrl: '',
     featured: false,
     rating: 4.7
   },
   {
-    id: 'app-008',
-    name: 'Nutrition Calculator',
-    description: 'Calculate nutritional requirements for wound healing patients. Includes protein, calorie, and micronutrient recommendations.',
-    category: 'Nutrition',
-    platform: 'Web',
+    id: 'app-005',
+    name: 'AstroWound-MEASURE',
+    description: 'Clinical Wound Assessment',
+    category: 'Assessment',
+    platform: 'Web & Mobile',
     price: 'Free',
-    icon: '🥗',
-    url: 'https://www.healingnutrition.com/calculator',
-    featured: false,
-    rating: 4.3
+    icon: '📱',
+    url: 'https://astrowound.com/measure',
+    iosUrl: '',
+    featured: true,
+    rating: 4.5
   }
 ];
 
