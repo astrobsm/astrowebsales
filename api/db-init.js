@@ -143,10 +143,126 @@ export default async function handler(req, res) {
       )
     `);
 
+    // Clinical Apps table for recommended apps
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS clinical_apps (
+        id SERIAL PRIMARY KEY,
+        app_id VARCHAR(100) UNIQUE,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        category VARCHAR(100),
+        platform VARCHAR(100),
+        price VARCHAR(50) DEFAULT 'Free',
+        icon VARCHAR(10),
+        url TEXT,
+        ios_url TEXT,
+        featured BOOLEAN DEFAULT false,
+        rating DECIMAL(2, 1) DEFAULT 0,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Training courses table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS training_courses (
+        id SERIAL PRIMARY KEY,
+        course_id VARCHAR(100) UNIQUE,
+        title VARCHAR(500) NOT NULL,
+        description TEXT,
+        instructor VARCHAR(255),
+        duration VARCHAR(100),
+        level VARCHAR(50),
+        certification BOOLEAN DEFAULT false,
+        price VARCHAR(50) DEFAULT 'Free',
+        image_url TEXT,
+        students INTEGER DEFAULT 0,
+        rating DECIMAL(2, 1) DEFAULT 0,
+        modules JSONB,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Offices/locations table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS offices (
+        id SERIAL PRIMARY KEY,
+        office_id VARCHAR(100) UNIQUE,
+        title VARCHAR(255) NOT NULL,
+        address TEXT,
+        phone VARCHAR(100),
+        email VARCHAR(255),
+        hours VARCHAR(255),
+        is_headquarters BOOLEAN DEFAULT false,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Downloads/resources table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS downloads (
+        id SERIAL PRIMARY KEY,
+        download_id VARCHAR(100) UNIQUE,
+        title VARCHAR(500) NOT NULL,
+        description TEXT,
+        category VARCHAR(100),
+        file_url TEXT,
+        file_size VARCHAR(50),
+        file_type VARCHAR(50),
+        downloads INTEGER DEFAULT 0,
+        featured BOOLEAN DEFAULT false,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Education topics table (for syncing education content)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS education_topics (
+        id SERIAL PRIMARY KEY,
+        topic_id VARCHAR(100) UNIQUE,
+        title VARCHAR(500) NOT NULL,
+        description TEXT,
+        icon VARCHAR(10),
+        article_count INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Education articles table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS education_articles (
+        id SERIAL PRIMARY KEY,
+        article_id VARCHAR(100) UNIQUE,
+        topic_id VARCHAR(100),
+        title VARCHAR(500) NOT NULL,
+        content TEXT,
+        excerpt TEXT,
+        author VARCHAR(255),
+        category VARCHAR(100),
+        read_time VARCHAR(50),
+        featured BOOLEAN DEFAULT false,
+        references_list JSONB,
+        article_date DATE,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     return res.status(200).json({ 
       success: true, 
       message: 'Database tables initialized successfully',
-      tables: ['products', 'articles', 'seminars', 'seminar_registrations', 'orders', 'partners', 'contact_messages', 'videos']
+      tables: ['products', 'articles', 'seminars', 'seminar_registrations', 'orders', 'partners', 'contact_messages', 'videos', 'clinical_apps', 'training_courses', 'offices', 'downloads', 'education_topics', 'education_articles']
     });
 
   } catch (error) {

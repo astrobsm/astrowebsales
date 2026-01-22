@@ -251,7 +251,8 @@ export const useSyncStore = create(
             'astrobsm-cart',
             'astrobsm-orders',
             'astrobsm-products',
-            'astrobsm-auth'
+            'astrobsm-auth',
+            'content-storage'
           ];
           
           storeKeys.forEach(key => {

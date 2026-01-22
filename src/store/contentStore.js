@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { contentApi } from '../services/api.js';
+import syncService from '../services/syncService.js';
 
 const ADMIN_PASSWORD = 'blackvelvet';
 
@@ -14433,6 +14435,145 @@ export const useContentStore = create(
       training: TRAINING,
       offices: OFFICES,
       clinicalApps: CLINICAL_APPS,
+      
+      // Sync status
+      isSyncing: false,
+      lastSyncTime: null,
+      syncError: null,
+      isServerSynced: false,
+
+      // ==================== SERVER SYNC FUNCTIONS ====================
+      
+      // Fetch all content from server (call on app init)
+      fetchContentFromServer: async () => {
+        try {
+          set({ isSyncing: true, syncError: null });
+          const serverContent = await contentApi.syncAll();
+          
+          // Only update if server has content
+          if (serverContent) {
+            const updates = {};
+            
+            if (serverContent.clinicalApps && serverContent.clinicalApps.length > 0) {
+              updates.clinicalApps = serverContent.clinicalApps;
+            }
+            if (serverContent.training && serverContent.training.length > 0) {
+              updates.training = serverContent.training;
+            }
+            if (serverContent.offices && serverContent.offices.length > 0) {
+              updates.offices = serverContent.offices;
+            }
+            if (serverContent.downloads && serverContent.downloads.length > 0) {
+              updates.downloads = serverContent.downloads;
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              set({ 
+                ...updates, 
+                lastSyncTime: new Date().toISOString(),
+                isServerSynced: true 
+              });
+              console.log('✅ Content synced from server:', Object.keys(updates));
+            }
+          }
+          
+          set({ isSyncing: false });
+          return true;
+        } catch (error) {
+          console.error('❌ Failed to fetch content from server:', error);
+          set({ isSyncing: false, syncError: error.message });
+          return false;
+        }
+      },
+
+      // Upload local content to server (for initial migration or full sync)
+      uploadContentToServer: async () => {
+        try {
+          set({ isSyncing: true, syncError: null });
+          const state = get();
+          
+          await contentApi.saveAll({
+            clinicalApps: state.clinicalApps,
+            training: state.training,
+            offices: state.offices,
+            downloads: state.downloads
+          });
+          
+          set({ 
+            isSyncing: false, 
+            lastSyncTime: new Date().toISOString(),
+            isServerSynced: true 
+          });
+          console.log('✅ Content uploaded to server successfully');
+          return true;
+        } catch (error) {
+          console.error('❌ Failed to upload content to server:', error);
+          set({ isSyncing: false, syncError: error.message });
+          return false;
+        }
+      },
+
+      // Broadcast content change via WebSocket
+      broadcastContentChange: (contentType, action, data) => {
+        syncService.syncState('content', `${contentType}:${action}`, {
+          contentType,
+          action,
+          data,
+          timestamp: Date.now()
+        });
+      },
+
+      // Handle incoming sync from other devices
+      handleContentSync: (payload) => {
+        const { contentType, action, data } = payload;
+        console.log('📥 Received content sync:', contentType, action);
+        
+        switch (contentType) {
+          case 'clinicalApps':
+            if (action === 'add') {
+              set(state => ({ clinicalApps: [...state.clinicalApps.filter(a => a.id !== data.id), data] }));
+            } else if (action === 'update') {
+              set(state => ({ clinicalApps: state.clinicalApps.map(a => a.id === data.id ? { ...a, ...data } : a) }));
+            } else if (action === 'delete') {
+              set(state => ({ clinicalApps: state.clinicalApps.filter(a => a.id !== data.id) }));
+            }
+            break;
+          case 'training':
+            if (action === 'add') {
+              set(state => ({ training: [...state.training.filter(t => t.id !== data.id), data] }));
+            } else if (action === 'update') {
+              set(state => ({ training: state.training.map(t => t.id === data.id ? { ...t, ...data } : t) }));
+            } else if (action === 'delete') {
+              set(state => ({ training: state.training.filter(t => t.id !== data.id) }));
+            }
+            break;
+          case 'offices':
+            if (action === 'add') {
+              set(state => ({ offices: [...state.offices.filter(o => o.id !== data.id), data] }));
+            } else if (action === 'update') {
+              set(state => ({ offices: state.offices.map(o => o.id === data.id ? { ...o, ...data } : o) }));
+            } else if (action === 'delete') {
+              set(state => ({ offices: state.offices.filter(o => o.id !== data.id) }));
+            }
+            break;
+          case 'downloads':
+            if (action === 'add') {
+              set(state => ({ downloads: [...state.downloads.filter(d => d.id !== data.id), data] }));
+            } else if (action === 'update') {
+              set(state => ({ downloads: state.downloads.map(d => d.id === data.id ? { ...d, ...data } : d) }));
+            } else if (action === 'delete') {
+              set(state => ({ downloads: state.downloads.filter(d => d.id !== data.id) }));
+            }
+            break;
+          case 'full':
+            // Full sync received
+            if (data.clinicalApps) set({ clinicalApps: data.clinicalApps });
+            if (data.training) set({ training: data.training });
+            if (data.offices) set({ offices: data.offices });
+            if (data.downloads) set({ downloads: data.downloads });
+            break;
+        }
+      },
 
       // Get all articles flattened
       getAllArticles: () => {
@@ -14524,8 +14665,8 @@ export const useContentStore = create(
         }));
       },
 
-      // CRUD for Downloads
-      addDownload: (download) => {
+      // CRUD for Downloads (with server sync)
+      addDownload: async (download) => {
         const newDownload = {
           ...download,
           id: `dl-${Date.now()}`,
@@ -14533,28 +14674,59 @@ export const useContentStore = create(
           date: new Date().toISOString().split('T')[0]
         };
         set(state => ({ downloads: [...state.downloads, newDownload] }));
+        
+        // Sync to server
+        try {
+          await contentApi.createDownload(newDownload);
+          get().broadcastContentChange('downloads', 'add', newDownload);
+        } catch (error) {
+          console.error('Failed to sync download to server:', error);
+        }
       },
 
-      updateDownload: (id, updates) => {
+      updateDownload: async (id, updates) => {
         set(state => ({
           downloads: state.downloads.map(d =>
             d.id === id ? { ...d, ...updates } : d
           )
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.updateDownload(id, updates);
+          get().broadcastContentChange('downloads', 'update', { id, ...updates });
+        } catch (error) {
+          console.error('Failed to sync download update to server:', error);
+        }
       },
 
-      deleteDownload: (id) => {
+      deleteDownload: async (id) => {
         set(state => ({
           downloads: state.downloads.filter(d => d.id !== id)
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.deleteDownload(id);
+          get().broadcastContentChange('downloads', 'delete', { id });
+        } catch (error) {
+          console.error('Failed to sync download deletion to server:', error);
+        }
       },
 
-      incrementDownloadCount: (id) => {
+      incrementDownloadCount: async (id) => {
         set(state => ({
           downloads: state.downloads.map(d =>
             d.id === id ? { ...d, downloads: d.downloads + 1 } : d
           )
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.incrementDownloadCount(id);
+        } catch (error) {
+          console.error('Failed to sync download count to server:', error);
+        }
       },
 
       // CRUD for Videos
@@ -14582,8 +14754,8 @@ export const useContentStore = create(
         }));
       },
 
-      // CRUD for Training
-      addTraining: (course) => {
+      // CRUD for Training (with server sync)
+      addTraining: async (course) => {
         const newCourse = {
           ...course,
           id: `train-${Date.now()}`,
@@ -14591,67 +14763,139 @@ export const useContentStore = create(
           rating: 0
         };
         set(state => ({ training: [...state.training, newCourse] }));
+        
+        // Sync to server
+        try {
+          await contentApi.createTraining(newCourse);
+          get().broadcastContentChange('training', 'add', newCourse);
+        } catch (error) {
+          console.error('Failed to sync training to server:', error);
+        }
       },
 
-      updateTraining: (id, updates) => {
+      updateTraining: async (id, updates) => {
         set(state => ({
           training: state.training.map(t =>
             t.id === id ? { ...t, ...updates } : t
           )
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.updateTraining(id, updates);
+          get().broadcastContentChange('training', 'update', { id, ...updates });
+        } catch (error) {
+          console.error('Failed to sync training update to server:', error);
+        }
       },
 
-      deleteTraining: (id) => {
+      deleteTraining: async (id) => {
         set(state => ({
           training: state.training.filter(t => t.id !== id)
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.deleteTraining(id);
+          get().broadcastContentChange('training', 'delete', { id });
+        } catch (error) {
+          console.error('Failed to sync training deletion to server:', error);
+        }
       },
 
-      // CRUD for Offices
-      addOffice: (office) => {
+      // CRUD for Offices (with server sync)
+      addOffice: async (office) => {
         const newOffice = {
           ...office,
           id: `office-${Date.now()}`
         };
         set(state => ({ offices: [...state.offices, newOffice] }));
+        
+        // Sync to server
+        try {
+          await contentApi.createOffice(newOffice);
+          get().broadcastContentChange('offices', 'add', newOffice);
+        } catch (error) {
+          console.error('Failed to sync office to server:', error);
+        }
       },
 
-      updateOffice: (id, updates) => {
+      updateOffice: async (id, updates) => {
         set(state => ({
           offices: state.offices.map(o =>
             o.id === id ? { ...o, ...updates } : o
           )
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.updateOffice(id, updates);
+          get().broadcastContentChange('offices', 'update', { id, ...updates });
+        } catch (error) {
+          console.error('Failed to sync office update to server:', error);
+        }
       },
 
-      deleteOffice: (id) => {
+      deleteOffice: async (id) => {
         set(state => ({
           offices: state.offices.filter(o => o.id !== id)
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.deleteOffice(id);
+          get().broadcastContentChange('offices', 'delete', { id });
+        } catch (error) {
+          console.error('Failed to sync office deletion to server:', error);
+        }
       },
 
-      // CRUD for Clinical Apps
-      addClinicalApp: (app) => {
+      // CRUD for Clinical Apps (with server sync)
+      addClinicalApp: async (app) => {
         const newApp = {
           ...app,
           id: `app-${Date.now()}`,
           rating: app.rating || 0
         };
         set(state => ({ clinicalApps: [...state.clinicalApps, newApp] }));
+        
+        // Sync to server
+        try {
+          await contentApi.createClinicalApp(newApp);
+          get().broadcastContentChange('clinicalApps', 'add', newApp);
+        } catch (error) {
+          console.error('Failed to sync clinical app to server:', error);
+        }
       },
 
-      updateClinicalApp: (id, updates) => {
+      updateClinicalApp: async (id, updates) => {
         set(state => ({
           clinicalApps: state.clinicalApps.map(a =>
             a.id === id ? { ...a, ...updates } : a
           )
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.updateClinicalApp(id, updates);
+          get().broadcastContentChange('clinicalApps', 'update', { id, ...updates });
+        } catch (error) {
+          console.error('Failed to sync clinical app update to server:', error);
+        }
       },
 
-      deleteClinicalApp: (id) => {
+      deleteClinicalApp: async (id) => {
         set(state => ({
           clinicalApps: state.clinicalApps.filter(a => a.id !== id)
         }));
+        
+        // Sync to server
+        try {
+          await contentApi.deleteClinicalApp(id);
+          get().broadcastContentChange('clinicalApps', 'delete', { id });
+        } catch (error) {
+          console.error('Failed to sync clinical app deletion to server:', error);
+        }
       },
 
       getFeaturedApps: () => {

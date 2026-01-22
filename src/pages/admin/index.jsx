@@ -1,7 +1,7 @@
 // Admin Pages
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Package, ShoppingCart, TrendingUp, AlertTriangle, DollarSign, Download, Upload, X, Eye, FileText, Share2, Phone, Search, Filter, Settings, Save, RefreshCw, Image, Palette, Mail, Bell, Globe, Clock, Edit2, Trash2, Plus, UserPlus, Key, Shield, Building, MapPin, CheckCircle, AlertCircle, Video, GraduationCap, Play, Smartphone, ExternalLink, Star } from 'lucide-react';
+import { Users, Package, ShoppingCart, TrendingUp, AlertTriangle, DollarSign, Download, Upload, X, Eye, FileText, Share2, Phone, Search, Filter, Settings, Save, RefreshCw, Image, Palette, Mail, Bell, Globe, Clock, Edit2, Trash2, Plus, UserPlus, Key, Shield, Building, MapPin, CheckCircle, AlertCircle, Video, GraduationCap, Play, Smartphone, ExternalLink, Star, Cloud, CloudOff } from 'lucide-react';
 import { useOrderStore } from '../../store/orderStore';
 import { useProductStore } from '../../store/productStore';
 import { useAuthStore } from '../../store/authStore';
@@ -3988,7 +3988,10 @@ export const AdminContent = () => {
     addDownload, updateDownload, deleteDownload,
     addTraining, updateTraining, deleteTraining,
     addClinicalApp, updateClinicalApp, deleteClinicalApp,
-    resetDownloadsToDefault, resetVideosToDefault, resetTrainingToDefault, resetClinicalAppsToDefault
+    resetDownloadsToDefault, resetVideosToDefault, resetTrainingToDefault, resetClinicalAppsToDefault,
+    // Sync functions
+    fetchContentFromServer, uploadContentToServer,
+    isSyncing, lastSyncTime, syncError, isServerSynced
   } = useContentStore();
   
   const [activeTab, setActiveTab] = useState('videos');
@@ -4099,6 +4102,27 @@ export const AdminContent = () => {
     }
   };
 
+  // Sync handlers
+  const handleSyncFromServer = async () => {
+    toast.loading('Syncing from server...', { id: 'sync' });
+    const success = await fetchContentFromServer();
+    if (success) {
+      toast.success('Content synced from server!', { id: 'sync' });
+    } else {
+      toast.error('Failed to sync from server', { id: 'sync' });
+    }
+  };
+
+  const handleUploadToServer = async () => {
+    toast.loading('Uploading to server...', { id: 'upload' });
+    const success = await uploadContentToServer();
+    if (success) {
+      toast.success('Content uploaded to server!', { id: 'upload' });
+    } else {
+      toast.error('Failed to upload to server', { id: 'upload' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -4122,6 +4146,55 @@ export const AdminContent = () => {
             Add New
           </button>
         </div>
+      </div>
+
+      {/* Sync Status Bar */}
+      <div className="bg-white rounded-lg border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {isServerSynced ? (
+                <Cloud className="text-green-600" size={20} />
+              ) : (
+                <CloudOff className="text-orange-500" size={20} />
+              )}
+              <span className="text-sm font-medium">
+                {isServerSynced ? 'Synced with Server' : 'Local Only'}
+              </span>
+            </div>
+            {lastSyncTime && (
+              <span className="text-sm text-gray-500">
+                Last sync: {new Date(lastSyncTime).toLocaleString()}
+              </span>
+            )}
+            {syncError && (
+              <span className="text-sm text-red-500">
+                Error: {syncError}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncFromServer}
+              disabled={isSyncing}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+              Pull from Server
+            </button>
+            <button
+              onClick={handleUploadToServer}
+              disabled={isSyncing}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              <Upload size={16} />
+              Push to Server
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          💡 Changes to Clinical Apps, Training, Downloads are automatically synced across all devices.
+        </p>
       </div>
 
       {/* Tabs */}

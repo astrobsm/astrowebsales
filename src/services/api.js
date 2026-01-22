@@ -245,6 +245,93 @@ export const videosApi = {
   },
 };
 
+// ==================== CONTENT API ====================
+// Handles Clinical Apps, Training, Offices, Downloads syncing
+
+export const contentApi = {
+  // ===== CLINICAL APPS =====
+  getClinicalApps: () => apiRequest('/content?type=clinical-apps'),
+  
+  createClinicalApp: (appData) => apiRequest('/content?type=clinical-apps', {
+    method: 'POST',
+    body: JSON.stringify(appData),
+  }),
+  
+  updateClinicalApp: (id, appData) => apiRequest(`/content?type=clinical-apps&id=${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(appData),
+  }),
+  
+  deleteClinicalApp: (id) => apiRequest(`/content?type=clinical-apps&id=${id}`, {
+    method: 'DELETE',
+  }),
+
+  // ===== TRAINING COURSES =====
+  getTraining: () => apiRequest('/content?type=training'),
+  
+  createTraining: (courseData) => apiRequest('/content?type=training', {
+    method: 'POST',
+    body: JSON.stringify(courseData),
+  }),
+  
+  updateTraining: (id, courseData) => apiRequest(`/content?type=training&id=${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(courseData),
+  }),
+  
+  deleteTraining: (id) => apiRequest(`/content?type=training&id=${id}`, {
+    method: 'DELETE',
+  }),
+
+  // ===== OFFICES =====
+  getOffices: () => apiRequest('/content?type=offices'),
+  
+  createOffice: (officeData) => apiRequest('/content?type=offices', {
+    method: 'POST',
+    body: JSON.stringify(officeData),
+  }),
+  
+  updateOffice: (id, officeData) => apiRequest(`/content?type=offices&id=${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(officeData),
+  }),
+  
+  deleteOffice: (id) => apiRequest(`/content?type=offices&id=${id}`, {
+    method: 'DELETE',
+  }),
+
+  // ===== DOWNLOADS =====
+  getDownloads: () => apiRequest('/content?type=downloads'),
+  
+  createDownload: (downloadData) => apiRequest('/content?type=downloads', {
+    method: 'POST',
+    body: JSON.stringify(downloadData),
+  }),
+  
+  updateDownload: (id, downloadData) => apiRequest(`/content?type=downloads&id=${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(downloadData),
+  }),
+  
+  deleteDownload: (id) => apiRequest(`/content?type=downloads&id=${id}`, {
+    method: 'DELETE',
+  }),
+  
+  incrementDownloadCount: (id) => apiRequest(`/content?type=downloads&id=${id}`, {
+    method: 'PATCH',
+  }),
+
+  // ===== BULK SYNC =====
+  // Get all content for initial sync
+  syncAll: () => apiRequest('/content?type=sync'),
+  
+  // Save all content to server (bulk upload)
+  saveAll: (contentData) => apiRequest('/content?type=sync', {
+    method: 'POST',
+    body: JSON.stringify(contentData),
+  }),
+};
+
 export default {
   status: statusApi,
   products: productsApi,
@@ -254,4 +341,5 @@ export default {
   partners: partnersApi,
   contact: contactApi,
   videos: videosApi,
+  content: contentApi,
 };

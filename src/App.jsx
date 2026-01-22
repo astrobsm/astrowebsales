@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useSyncStore } from './store/syncStore';
+import { useContentStore } from './store/contentStore';
+import syncService from './services/syncService';
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
@@ -63,15 +65,29 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
   const { initSync, cleanup } = useSyncStore();
+  const { fetchContentFromServer, handleContentSync } = useContentStore();
 
   useEffect(() => {
     // Initialize cross-device sync
     initSync();
     
+    // Fetch content from server on app load
+    fetchContentFromServer();
+    
+    // Listen for content sync events from other devices
+    const handleStateUpdate = (data) => {
+      if (data.store === 'content') {
+        handleContentSync(data.payload);
+      }
+    };
+    
+    syncService.on('state-update', handleStateUpdate);
+    
     return () => {
       cleanup();
+      syncService.off('state-update', handleStateUpdate);
     };
-  }, [initSync, cleanup]);
+  }, [initSync, cleanup, fetchContentFromServer, handleContentSync]);
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

@@ -7,7 +7,7 @@ import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
 
 const Education = () => {
-  const { educationTopics, downloads, videos, training, clinicalApps, getAllArticles, getFeaturedArticles, incrementDownloadCount, resetEducationTopicsToDefault, resetDownloadsToDefault } = useContentStore();
+  const { educationTopics, downloads, videos, training, clinicalApps, getAllArticles, getFeaturedArticles, incrementDownloadCount, resetEducationTopicsToDefault, resetDownloadsToDefault, fetchContentFromServer } = useContentStore();
   const { user } = useAuthStore();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('articles');
@@ -16,6 +16,11 @@ const Education = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [appSearchTerm, setAppSearchTerm] = useState('');
   const [selectedAppCategory, setSelectedAppCategory] = useState('all');
+
+  // Fetch content from server on mount to ensure latest data
+  useEffect(() => {
+    fetchContentFromServer();
+  }, [fetchContentFromServer]);
 
   // Handle URL params for tab selection
   useEffect(() => {

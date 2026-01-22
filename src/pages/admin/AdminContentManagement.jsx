@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, Video, GraduationCap, Download, Plus, Edit, Trash2, 
-  X, Save, Upload, Eye, Lock, Unlock
+  X, Save, Upload, Eye, Lock, Unlock, RefreshCw, Cloud, CloudOff, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -14,7 +14,10 @@ const AdminContentManagement = () => {
     addArticle, updateArticle, deleteArticle,
     addVideo, updateVideo, deleteVideo,
     addTraining, updateTraining, deleteTraining,
-    addDownload, updateDownload, deleteDownload
+    addDownload, updateDownload, deleteDownload,
+    // Sync functions
+    fetchContentFromServer, uploadContentToServer,
+    isSyncing, lastSyncTime, syncError, isServerSynced
   } = useContentStore();
 
   const [activeTab, setActiveTab] = useState('articles');
@@ -205,6 +208,27 @@ const AdminContentManagement = () => {
     toast.success('Deleted successfully!');
   };
 
+  // Sync handlers
+  const handleSyncFromServer = async () => {
+    toast.loading('Syncing from server...', { id: 'sync' });
+    const success = await fetchContentFromServer();
+    if (success) {
+      toast.success('Content synced from server!', { id: 'sync' });
+    } else {
+      toast.error('Failed to sync from server', { id: 'sync' });
+    }
+  };
+
+  const handleUploadToServer = async () => {
+    toast.loading('Uploading to server...', { id: 'upload' });
+    const success = await uploadContentToServer();
+    if (success) {
+      toast.success('Content uploaded to server!', { id: 'upload' });
+    } else {
+      toast.error('Failed to upload to server', { id: 'upload' });
+    }
+  };
+
   const tabs = [
     { id: 'articles', label: 'Articles', icon: FileText, count: articles.length },
     { id: 'videos', label: 'Videos', icon: Video, count: videos.length },
@@ -252,6 +276,55 @@ const AdminContentManagement = () => {
             Add {activeTab.slice(0, -1)}
           </button>
         </div>
+      </div>
+
+      {/* Sync Status Bar */}
+      <div className="bg-white rounded-lg border p-4 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {isServerSynced ? (
+                <Cloud className="text-green-600" size={20} />
+              ) : (
+                <CloudOff className="text-orange-500" size={20} />
+              )}
+              <span className="text-sm font-medium">
+                {isServerSynced ? 'Synced with Server' : 'Local Only'}
+              </span>
+            </div>
+            {lastSyncTime && (
+              <span className="text-sm text-gray-500">
+                Last sync: {new Date(lastSyncTime).toLocaleString()}
+              </span>
+            )}
+            {syncError && (
+              <span className="text-sm text-red-500">
+                Error: {syncError}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncFromServer}
+              disabled={isSyncing}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+              Pull from Server
+            </button>
+            <button
+              onClick={handleUploadToServer}
+              disabled={isSyncing}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              <Upload size={16} />
+              Push to Server
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          💡 Changes are automatically synced to all devices. Use "Pull from Server" to get latest changes or "Push to Server" to upload your local content.
+        </p>
       </div>
 
       {/* Tabs */}

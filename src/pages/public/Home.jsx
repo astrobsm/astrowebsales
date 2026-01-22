@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowRight, Shield, Heart, Users, Truck, Award, 
@@ -11,9 +11,14 @@ import { useContentStore } from '../../store/contentStore';
 
 const Home = () => {
   const { getUpcomingSeminars } = useSeminarStore();
-  const { getFeaturedApps, clinicalApps } = useContentStore();
+  const { getFeaturedApps, clinicalApps, fetchContentFromServer } = useContentStore();
   const upcomingSeminars = getUpcomingSeminars().slice(0, 3);
   const featuredApps = getFeaturedApps().slice(0, 4);
+
+  // Fetch content from server on mount to ensure latest data
+  useEffect(() => {
+    fetchContentFromServer();
+  }, [fetchContentFromServer]);
 
   const features = [
     {
