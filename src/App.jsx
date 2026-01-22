@@ -38,6 +38,7 @@ import AdminAnalytics from './pages/admin/AdminAnalytics';
 import AdminStaffManagement from './pages/admin/AdminStaffManagement';
 import AdminPartnerManagement from './pages/admin/AdminPartnerManagement';
 import AdminAccessSettings from './pages/admin/AdminAccessSettings';
+import AdminDataSync from './pages/admin/AdminDataSync';
 
 // Distributor Dashboard
 import { DistributorDashboard, DistributorOrders, DistributorInventory, DistributorHistory } from './pages/distributor';
@@ -63,22 +64,44 @@ import BecomeDistributor from './pages/partner/BecomeDistributor';
 // Auth Guard
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
+// Import product store for initial sync
+import { useProductStore } from './store/productStore';
+
 function App() {
   const { initSync, cleanup } = useSyncStore();
   const { fetchContentFromServer, handleContentSync } = useContentStore();
+  const { fetchProducts } = useProductStore();
 
   useEffect(() => {
     // Initialize cross-device sync
     initSync();
     
-    // Fetch content from server on app load
-    fetchContentFromServer().then(success => {
-      if (success) {
-        console.log('✅ Content loaded from server');
-      } else {
-        console.log('⚠️ Using local content (server sync failed or empty)');
+    // Fetch all data from server on app load for proper sync
+    const initializeData = async () => {
+      try {
+        // Fetch content from server
+        const contentSuccess = await fetchContentFromServer();
+        
+        // Fetch products from server
+        const products = await fetchProducts();
+        
+        if (contentSuccess) {
+          console.log('✅ Content loaded from server');
+        } else {
+          console.log('⚠️ Using local content (server sync failed or empty)');
+        }
+        
+        if (products && products.length > 0) {
+          console.log(`✅ ${products.length} products loaded from server`);
+        } else {
+          console.log('⚠️ No products loaded from server');
+        }
+      } catch (error) {
+        console.error('❌ Failed to sync data from server:', error);
       }
-    });
+    };
+    
+    initializeData();
     
     // Listen for content sync events from other devices
     const handleStateUpdate = (data) => {
@@ -92,6 +115,7 @@ function App() {
     const handleFullSync = (event) => {
       console.log('📥 Full sync received, refreshing content from server');
       fetchContentFromServer();
+      fetchProducts();
     };
     
     syncService.on('state-update', handleStateUpdate);
@@ -153,6 +177,7 @@ function App() {
           <Route path="content" element={<AdminContent />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="access-settings" element={<AdminAccessSettings />} />
+          <Route path="data-sync" element={<AdminDataSync />} />
         </Route>
 
         {/* Distributor Dashboard Routes */}

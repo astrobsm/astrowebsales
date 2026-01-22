@@ -239,6 +239,48 @@ export const useProductStore = create(
             }
           }))
         }));
+      },
+
+      // Upload all local products to server (for initial migration)
+      uploadAllProducts: async () => {
+        const products = get().products;
+        const results = { success: 0, failed: 0, errors: [] };
+        
+        for (const product of products) {
+          try {
+            const apiData = {
+              ...product,
+              distributorPrice: product.prices?.distributor || 0,
+              price_distributor: product.prices?.distributor || 0,
+              price_retail: product.prices?.retail || 0,
+              price_wholesaler: product.prices?.wholesaler || 0
+            };
+            
+            await productsApi.create(apiData);
+            results.success++;
+          } catch (error) {
+            results.failed++;
+            results.errors.push({ product: product.name, error: error.message });
+          }
+        }
+        
+        console.log(`Product upload complete: ${results.success} success, ${results.failed} failed`);
+        return results;
+      },
+
+      // Clear local products and refresh from server
+      refreshFromServer: async () => {
+        try {
+          const serverProducts = await productsApi.getAll();
+          if (serverProducts && Array.isArray(serverProducts)) {
+            set({ products: serverProducts });
+            return { success: true, count: serverProducts.length };
+          }
+          return { success: false, error: 'No products returned from server' };
+        } catch (error) {
+          console.error('Failed to refresh products from server:', error);
+          return { success: false, error: error.message };
+        }
       }
     }),
     {

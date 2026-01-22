@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users, FileText, 
   TrendingUp, Truck, AlertTriangle, MessageSquare, History,
   BarChart3, UserPlus, Building2, Shield, MessageCircle, BookOpen,
-  Volume2, VolumeX, Play, Square, Gauge
+  Volume2, VolumeX, Play, Square, Gauge, Cloud
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
@@ -54,6 +54,7 @@ const DashboardLayout = ({ role }) => {
           { path: '/admin/feedback', icon: MessageCircle, label: 'Feedback' },
           { path: '/admin/reports', icon: BarChart3, label: 'Reports' },
           { path: '/admin/content', icon: BookOpen, label: 'Content Management' },
+          { path: '/admin/data-sync', icon: Cloud, label: 'Data Sync' },
           { path: '/admin/access-settings', icon: Shield, label: 'Access Settings' },
           { path: '/admin/settings', icon: Settings, label: 'Settings' }
         ];
