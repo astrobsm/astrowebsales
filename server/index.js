@@ -1163,6 +1163,8 @@ app.put('/api/content', async (req, res) => {
   try {
     if (type === 'clinical-apps') {
       const { name, description, category, platform, price, icon, url, iosUrl, featured, rating } = body;
+      
+      // First try to update existing
       const result = await pool.query(`
         UPDATE clinical_apps SET
           name = COALESCE($1, name),
@@ -1179,7 +1181,31 @@ app.put('/api/content', async (req, res) => {
         WHERE app_id = $11 OR id::text = $11
         RETURNING *
       `, [name, description, category, platform, price, icon, url, iosUrl, featured, rating, id]);
-      return res.json(result.rows[0]);
+      
+      if (result.rows[0]) {
+        return res.json(result.rows[0]);
+      }
+      
+      // If no row was updated, insert as new
+      const insertResult = await pool.query(`
+        INSERT INTO clinical_apps (app_id, name, description, category, platform, price, icon, url, ios_url, featured, rating)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (app_id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          category = EXCLUDED.category,
+          platform = EXCLUDED.platform,
+          price = EXCLUDED.price,
+          icon = EXCLUDED.icon,
+          url = EXCLUDED.url,
+          ios_url = EXCLUDED.ios_url,
+          featured = EXCLUDED.featured,
+          rating = EXCLUDED.rating,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+      `, [id, name, description, category, platform, price || 'Free', icon, url, iosUrl, featured || false, rating || 0]);
+      
+      return res.json(insertResult.rows[0] || { success: true, id });
     }
 
     // Add similar PUT handlers for other types as needed
