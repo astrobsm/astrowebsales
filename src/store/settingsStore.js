@@ -19,11 +19,12 @@ export const useSettingsStore = create(
         country: 'Nigeria',
         website: 'www.bonnesantemedicals.com',
         socialMedia: {
-          facebook: '',
+          facebook: 'https://www.facebook.com/wound.wisdom',
           twitter: '',
-          instagram: '',
+          instagram: 'https://www.instagram.com/wound.wisdom',
           linkedin: '',
-          whatsapp: '+2349028724839'
+          youtube: 'https://www.youtube.com/@bonnesantemedicals6750',
+          whatsapp: '+2347076793866'
         }
       },
 

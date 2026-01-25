@@ -14292,17 +14292,9 @@ const OFFICES = [
   {
     id: 'office-002',
     title: 'Lagos Office',
-    address: '45 Medical Plaza, Victoria Island, Lagos',
-    phone: '+234 802 345 6789',
+    address: '39 Bamgboye Street, Agiliti Estate, Mile 12, Lagos',
+    phone: '+234 803 732 5194',
     email: 'lagos@bonnesante.com',
-    hours: 'Mon - Fri: 8:00 AM - 5:00 PM'
-  },
-  {
-    id: 'office-003',
-    title: 'Abuja Office',
-    address: '78 Constitution Avenue, Central Business District, Abuja',
-    phone: '+234 803 456 7890',
-    email: 'abuja@bonnesante.com',
     hours: 'Mon - Fri: 8:00 AM - 5:00 PM'
   }
 ];

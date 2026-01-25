@@ -188,11 +188,9 @@ const PublicLayout = () => {
                 products for healthcare professionals and institutions.
               </p>
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-primary-400"><Facebook size={20} /></a>
-                <a href="#" className="text-gray-400 hover:text-primary-400"><Twitter size={20} /></a>
-                <a href="#" className="text-gray-400 hover:text-primary-400"><Instagram size={20} /></a>
-                <a href="#" className="text-gray-400 hover:text-primary-400"><Linkedin size={20} /></a>
-                <a href="#" className="text-gray-400 hover:text-primary-400"><Youtube size={20} /></a>
+                <a href="https://www.facebook.com/wound.wisdom" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary-400" title="Facebook"><Facebook size={20} /></a>
+                <a href="https://www.instagram.com/wound.wisdom" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary-400" title="Instagram"><Instagram size={20} /></a>
+                <a href="https://www.youtube.com/@bonnesantemedicals6750" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary-400" title="YouTube"><Youtube size={20} /></a>
               </div>
             </div>
 

@@ -81,18 +81,10 @@ const Contact = () => {
     },
     {
       title: 'Lagos Office',
-      address: 'Victoria Island, Lagos',
-      phone: '+2347025755406',
-      phoneDisplay: '+234 702 575 5406',
+      address: '39 Bamgboye Street, Agiliti Estate, Mile 12, Lagos',
+      phone: '+2348037325194',
+      phoneDisplay: '+234 803 732 5194',
       email: 'lagos@bonnesante.com',
-      hours: 'Mon - Fri: 8:00 AM - 5:00 PM'
-    },
-    {
-      title: 'Abuja Office',
-      address: '45 Constitution Avenue, Central Business District, Abuja',
-      phone: '+2349028724839',
-      phoneDisplay: '+234 902 872 4839 | +234 702 575 5406',
-      email: 'abuja@bonnesante.com',
       hours: 'Mon - Fri: 8:00 AM - 5:00 PM'
     }
   ];
