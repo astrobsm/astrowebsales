@@ -1718,73 +1718,98 @@ app.post('/api/sync/full', async (req, res) => {
 
     // Sync settings
     if (settings) {
-      await pool.query(`
-        INSERT INTO settings (id, company_info, appearance, slideshow, email_settings, order_settings, access_settings)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (id) DO UPDATE SET
-          company_info = EXCLUDED.company_info,
-          appearance = EXCLUDED.appearance,
-          slideshow = EXCLUDED.slideshow,
-          email_settings = EXCLUDED.email_settings,
-          order_settings = EXCLUDED.order_settings,
-          access_settings = EXCLUDED.access_settings,
-          updated_at = CURRENT_TIMESTAMP
-      `, ['global', JSON.stringify(settings.companyInfo || {}), JSON.stringify(settings.appearance || {}), JSON.stringify(settings.slideshow || {}), JSON.stringify(settings.emailSettings || {}), JSON.stringify(settings.orderSettings || {}), JSON.stringify(settings.accessSettings || {})]);
+      try {
+        await pool.query(`
+          INSERT INTO settings (id, company_info, appearance, slideshow, email_settings, order_settings)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (id) DO UPDATE SET
+            company_info = EXCLUDED.company_info,
+            appearance = EXCLUDED.appearance,
+            slideshow = EXCLUDED.slideshow,
+            email_settings = EXCLUDED.email_settings,
+            order_settings = EXCLUDED.order_settings,
+            updated_at = CURRENT_TIMESTAMP
+        `, ['global', JSON.stringify(settings.companyInfo || {}), JSON.stringify(settings.appearance || {}), JSON.stringify(settings.slideshow || {}), JSON.stringify(settings.emailSettings || {}), JSON.stringify(settings.orderSettings || {})]);
+        console.log('✅ Settings synced');
+      } catch (err) {
+        console.error('Settings sync error:', err.message);
+        errors.push(`Settings: ${err.message}`);
+      }
     }
 
     // Sync content (clinical apps, training, offices, downloads)
     if (content) {
       if (content.clinicalApps) {
         for (const app of content.clinicalApps) {
-          await pool.query(`
-            INSERT INTO clinical_apps (app_id, name, description, category, platform, price, icon, url, ios_url, featured, rating)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (app_id) DO UPDATE SET
-              name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category,
-              platform = EXCLUDED.platform, price = EXCLUDED.price, icon = EXCLUDED.icon,
-              url = EXCLUDED.url, ios_url = EXCLUDED.ios_url, featured = EXCLUDED.featured,
-              rating = EXCLUDED.rating, updated_at = CURRENT_TIMESTAMP
-          `, [app.id, app.name, app.description, app.category, app.platform, app.price, app.icon, app.url, app.iosUrl, app.featured, app.rating]);
+          try {
+            await pool.query(`
+              INSERT INTO clinical_apps (app_id, name, description, category, platform, price, icon, url, ios_url, featured, rating)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ON CONFLICT (app_id) DO UPDATE SET
+                name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category,
+                platform = EXCLUDED.platform, price = EXCLUDED.price, icon = EXCLUDED.icon,
+                url = EXCLUDED.url, ios_url = EXCLUDED.ios_url, featured = EXCLUDED.featured,
+                rating = EXCLUDED.rating, updated_at = CURRENT_TIMESTAMP
+            `, [app.id, app.name, app.description, app.category, app.platform, app.price, app.icon, app.url, app.iosUrl, app.featured, app.rating]);
+          } catch (err) {
+            console.error('Clinical app sync error:', err.message);
+            errors.push(`Clinical app ${app.id}: ${err.message}`);
+          }
         }
       }
 
       if (content.training) {
         for (const course of content.training) {
-          await pool.query(`
-            INSERT INTO training_courses (course_id, title, description, instructor, duration, level, certification, price, image_url, students, rating, modules)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            ON CONFLICT (course_id) DO UPDATE SET
-              title = EXCLUDED.title, description = EXCLUDED.description, instructor = EXCLUDED.instructor,
-              duration = EXCLUDED.duration, level = EXCLUDED.level, certification = EXCLUDED.certification,
-              price = EXCLUDED.price, image_url = EXCLUDED.image_url, students = EXCLUDED.students,
-              rating = EXCLUDED.rating, modules = EXCLUDED.modules, updated_at = CURRENT_TIMESTAMP
-          `, [course.id, course.title, course.description, course.instructor, course.duration, course.level, course.certification, course.price, course.image, course.students, course.rating, JSON.stringify(course.modules || [])]);
+          try {
+            await pool.query(`
+              INSERT INTO training_courses (course_id, title, description, instructor, duration, level, certification, price, image_url, students, rating, modules)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+              ON CONFLICT (course_id) DO UPDATE SET
+                title = EXCLUDED.title, description = EXCLUDED.description, instructor = EXCLUDED.instructor,
+                duration = EXCLUDED.duration, level = EXCLUDED.level, certification = EXCLUDED.certification,
+                price = EXCLUDED.price, image_url = EXCLUDED.image_url, students = EXCLUDED.students,
+                rating = EXCLUDED.rating, modules = EXCLUDED.modules, updated_at = CURRENT_TIMESTAMP
+            `, [course.id, course.title, course.description, course.instructor, course.duration, course.level, course.certification, course.price, course.image, course.students, course.rating, JSON.stringify(course.modules || [])]);
+          } catch (err) {
+            console.error('Training sync error:', err.message);
+            errors.push(`Training ${course.id}: ${err.message}`);
+          }
         }
       }
 
       if (content.offices) {
         for (const office of content.offices) {
-          await pool.query(`
-            INSERT INTO offices (office_id, title, address, phone, email, hours, is_headquarters)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (office_id) DO UPDATE SET
-              title = EXCLUDED.title, address = EXCLUDED.address, phone = EXCLUDED.phone,
-              email = EXCLUDED.email, hours = EXCLUDED.hours, is_headquarters = EXCLUDED.is_headquarters,
-              updated_at = CURRENT_TIMESTAMP
-          `, [office.id, office.title, office.address, office.phone, office.email, office.hours, office.isHeadquarters]);
+          try {
+            await pool.query(`
+              INSERT INTO offices (office_id, title, address, phone, email, hours, is_headquarters)
+              VALUES ($1, $2, $3, $4, $5, $6, $7)
+              ON CONFLICT (office_id) DO UPDATE SET
+                title = EXCLUDED.title, address = EXCLUDED.address, phone = EXCLUDED.phone,
+                email = EXCLUDED.email, hours = EXCLUDED.hours, is_headquarters = EXCLUDED.is_headquarters,
+                updated_at = CURRENT_TIMESTAMP
+            `, [office.id, office.title, office.address, office.phone, office.email, office.hours, office.isHeadquarters]);
+          } catch (err) {
+            console.error('Office sync error:', err.message);
+            errors.push(`Office ${office.id}: ${err.message}`);
+          }
         }
       }
 
       if (content.downloads) {
         for (const dl of content.downloads) {
-          await pool.query(`
-            INSERT INTO downloads (download_id, title, description, category, file_url, file_size, file_type, featured, downloads)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            ON CONFLICT (download_id) DO UPDATE SET
-              title = EXCLUDED.title, description = EXCLUDED.description, category = EXCLUDED.category,
-              file_url = EXCLUDED.file_url, file_size = EXCLUDED.file_size, file_type = EXCLUDED.file_type,
-              featured = EXCLUDED.featured, downloads = EXCLUDED.downloads, updated_at = CURRENT_TIMESTAMP
-          `, [dl.id, dl.title, dl.description, dl.category, dl.fileUrl, dl.fileSize, dl.fileType, dl.featured, dl.downloads]);
+          try {
+            await pool.query(`
+              INSERT INTO downloads (download_id, title, description, category, file_url, file_size, file_type, featured, downloads)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              ON CONFLICT (download_id) DO UPDATE SET
+                title = EXCLUDED.title, description = EXCLUDED.description, category = EXCLUDED.category,
+                file_url = EXCLUDED.file_url, file_size = EXCLUDED.file_size, file_type = EXCLUDED.file_type,
+                featured = EXCLUDED.featured, downloads = EXCLUDED.downloads, updated_at = CURRENT_TIMESTAMP
+            `, [dl.id, dl.title, dl.description, dl.category, dl.fileUrl, dl.fileSize, dl.fileType, dl.featured, dl.downloads]);
+          } catch (err) {
+            console.error('Download sync error:', err.message);
+            errors.push(`Download ${dl.id}: ${err.message}`);
+          }
         }
       }
     }
@@ -1796,7 +1821,12 @@ app.post('/api/sync/full', async (req, res) => {
       timestamp: Date.now()
     });
 
-    res.json({ success: true, message: 'Full sync completed', timestamp: new Date().toISOString() });
+    // Return success with any errors that occurred
+    if (errors.length > 0) {
+      console.log('Sync completed with errors:', errors);
+    }
+    
+    res.json({ success: true, message: 'Full sync completed', errors: errors.length > 0 ? errors : undefined, timestamp: new Date().toISOString() });
   } catch (error) {
     console.error('Full sync push error:', error);
     res.status(500).json({ error: error.message });
