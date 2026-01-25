@@ -76,7 +76,8 @@ export const useAuthStore = create(
           }
           
           // Check staff credentials from local staffStore first
-          const staffMember = staffStore.getStaffByEmail(email);
+          const staffMember = staffStore.staff?.find(s => s.email === email);
+          console.log('🔍 Staff lookup:', { email, found: !!staffMember });
           if (staffMember && staffMember.password === password && staffMember.status === 'active') {
             const user = {
               id: staffMember.id,
