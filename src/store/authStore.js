@@ -42,17 +42,21 @@ export const useAuthStore = create(
         
         // Secure login for staff
         login: async (email, password) => {
-          // Import staffStore to check registered users
-          const { useStaffStore } = await import('./staffStore');
-          const staffStore = useStaffStore.getState();
+          console.log('🔐 Login attempt:', { email, passwordLength: password?.length });
           
-          // Admin account - password should be changed in production
-          const adminAccount = {
-            id: 'admin-1',
-            name: 'System Administrator',
-            role: 'admin',
-            email: 'admin@bonnesante.com',
-            phone: '+234 902 872 4839'
+          try {
+            // Import staffStore to check registered users
+            const { useStaffStore } = await import('./staffStore');
+            const staffStore = useStaffStore.getState();
+            console.log('📦 StaffStore loaded, partners count:', staffStore.partners?.length);
+            
+            // Admin account - password should be changed in production
+            const adminAccount = {
+              id: 'admin-1',
+              name: 'System Administrator',
+              role: 'admin',
+              email: 'admin@bonnesante.com',
+              phone: '+234 902 872 4839'
           };
           
           // Simulate API call
@@ -213,7 +217,13 @@ export const useAuthStore = create(
             console.error('Partner API login error:', apiError);
           }
           
+          console.log('❌ Login failed - no matching credentials found');
           return { success: false, error: 'Invalid credentials' };
+          
+          } catch (loginError) {
+            console.error('❌ Login function error:', loginError);
+            return { success: false, error: 'Login error: ' + loginError.message };
+          }
         },
         
         // Logout

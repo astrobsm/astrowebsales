@@ -1,6 +1,6 @@
-const CACHE_NAME = 'bonnesante-v6';
-const STATIC_CACHE = 'bonnesante-static-v6';
-const DYNAMIC_CACHE = 'bonnesante-dynamic-v6';
+const CACHE_NAME = 'bonnesante-v7';
+const STATIC_CACHE = 'bonnesante-static-v7';
+const DYNAMIC_CACHE = 'bonnesante-dynamic-v7';
 
 // Essential static assets
 const STATIC_ASSETS = [
