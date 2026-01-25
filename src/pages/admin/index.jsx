@@ -1230,7 +1230,18 @@ export const AdminOrders = () => {
 
   // Get payment details for an order based on customer state
   const getPaymentDetails = (order) => {
-    // First check if order has a specific distributor assigned
+    // For partner orders (distributors/wholesalers), ALWAYS show Bonnesante Medicals account
+    if (order.orderType === 'partner') {
+      return {
+        bankName: 'Access Bank / Moniepoint',
+        accountNumber: '1379643548 / 8259518195',
+        accountName: 'Bonnesante Medicals',
+        distributorName: 'Bonnesante Medicals (Head Office)',
+        isPartnerOrder: true
+      };
+    }
+    
+    // For retail orders: First check if order has a specific distributor assigned
     if (order.distributorId) {
       const assignedDistributor = distributors.find(d => d.id === order.distributorId);
       if (assignedDistributor && assignedDistributor.bankName && assignedDistributor.accountNumber) {
@@ -1429,10 +1440,13 @@ export const AdminOrders = () => {
       // Payment Details Section
       const paymentDetails = getPaymentDetails(order);
       
+      // Adjust height for partner orders which have 2 bank accounts
+      const paymentBoxHeight = paymentDetails.isPartnerOrder ? 60 : 45;
+      
       doc.setFillColor(255, 248, 220); // Light yellow background
-      doc.rect(15, y - 4, pageWidth - 30, 45, 'F');
+      doc.rect(15, y - 4, pageWidth - 30, paymentBoxHeight, 'F');
       doc.setDrawColor(40, 125, 77);
-      doc.rect(15, y - 4, pageWidth - 30, 45, 'S');
+      doc.rect(15, y - 4, pageWidth - 30, paymentBoxHeight, 'S');
       
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
@@ -1442,28 +1456,57 @@ export const AdminOrders = () => {
       
       doc.setFontSize(10);
       doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Bank Name:', 20, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(paymentDetails.bankName, 70, y);
-      y += 7;
       
-      doc.setFont('helvetica', 'bold');
-      doc.text('Account Number:', 20, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(paymentDetails.accountNumber, 70, y);
-      y += 7;
-      
-      doc.setFont('helvetica', 'bold');
-      doc.text('Account Name:', 20, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(paymentDetails.accountName, 70, y);
-      y += 7;
-      
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`(Payment to: ${paymentDetails.distributorName})`, 20, y);
+      if (paymentDetails.isPartnerOrder) {
+        // Partner order - show both bank accounts clearly
+        doc.setFont('helvetica', 'bold');
+        doc.text('Account Name:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Bonnesante Medicals', 70, y);
+        y += 8;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text('Bank 1:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Access Bank - 1379643548', 70, y);
+        y += 7;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text('Bank 2:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Moniepoint - 8259518195', 70, y);
+        y += 8;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text('WhatsApp:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Send payment proof to 0707 679 3866', 70, y);
+        y += 7;
+      } else {
+        // Retail order - show distributor bank details
+        doc.setFont('helvetica', 'bold');
+        doc.text('Bank Name:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(paymentDetails.bankName, 70, y);
+        y += 7;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text('Account Number:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(paymentDetails.accountNumber, 70, y);
+        y += 7;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text('Account Name:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(paymentDetails.accountName, 70, y);
+        y += 7;
+        
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`(Payment to: ${paymentDetails.distributorName})`, 20, y);
+      }
       y += 15;
 
       // Footer
@@ -1488,6 +1531,25 @@ export const AdminOrders = () => {
   const shareViaWhatsApp = (order) => {
     const paymentDetails = getPaymentDetails(order);
     
+    // Different payment info format for partner vs retail orders
+    const paymentSection = paymentDetails.isPartnerOrder 
+      ? `
+💳 *PAYMENT DETAILS*
+━━━━━━━━━━━━━━━━━━━━
+👤 *Account Name:* Bonnesante Medicals
+🏦 *Bank 1:* Access Bank - 1379643548
+🏦 *Bank 2:* Moniepoint - 8259518195
+📱 *WhatsApp:* Send payment proof to 0707 679 3866
+`
+      : `
+💳 *PAYMENT DETAILS*
+━━━━━━━━━━━━━━━━━━━━
+🏦 *Bank:* ${paymentDetails.bankName}
+🔢 *Account No:* ${paymentDetails.accountNumber}
+👤 *Account Name:* ${paymentDetails.accountName}
+📍 *Pay to:* ${paymentDetails.distributorName}
+`;
+    
     const message = `
 *BONNESANTE MEDICALS - Order Invoice*
 ━━━━━━━━━━━━━━━━━━━━
@@ -1507,14 +1569,7 @@ ${order.items?.map(item =>
 
 💰 *Total:* ₦${order.totalAmount?.toLocaleString()}
 
-━━━━━━━━━━━━━━━━━━━━
-💳 *PAYMENT DETAILS*
-━━━━━━━━━━━━━━━━━━━━
-🏦 *Bank:* ${paymentDetails.bankName}
-🔢 *Account No:* ${paymentDetails.accountNumber}
-👤 *Account Name:* ${paymentDetails.accountName}
-📍 *Pay to:* ${paymentDetails.distributorName}
-
+━━━━━━━━━━━━━━━━━━━━${paymentSection}
 ━━━━━━━━━━━━━━━━━━━━
 _Bonnesante Medicals_
 _Your Wound Care Partner_
