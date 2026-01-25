@@ -188,6 +188,28 @@ export const useStaffStore = create(
         return { success: true };
       },
 
+      // Set all staff (for sync from server)
+      setStaff: (staffArray) => {
+        if (!Array.isArray(staffArray)) return;
+        
+        // Merge with existing admin to avoid lockout
+        const hasAdmin = staffArray.some(s => s.username === 'admin');
+        const adminStaff = get().staff.find(s => s.username === 'admin');
+        
+        set({ 
+          staff: hasAdmin ? staffArray : (adminStaff ? [adminStaff, ...staffArray.filter(s => s.username !== 'admin')] : staffArray)
+        });
+        
+        console.log(`📥 Staff store updated with ${staffArray.length} staff members`);
+      },
+
+      // Set all partners (for sync from server)
+      setPartners: (partnersArray) => {
+        if (!Array.isArray(partnersArray)) return;
+        set({ partners: partnersArray });
+        console.log(`📥 Partners store updated with ${partnersArray.length} partners`);
+      },
+
       // Add single staff member
       addStaff: (staffData) => {
         const existingUsernames = get().staff.map(s => s.username);
@@ -296,7 +318,7 @@ export const useStaffStore = create(
       },
 
       // Add partner (distributor/wholesaler)
-      addPartner: (partnerData) => {
+      addPartner: async (partnerData) => {
         const existingUsernames = [...get().staff.map(s => s.username), ...get().partners.map(p => p.username)];
         const username = partnerData.username || generateUsername(partnerData.companyName || partnerData.name, existingUsernames);
         const password = generatePassword();
@@ -324,6 +346,13 @@ export const useStaffStore = create(
         };
 
         set(state => ({ partners: [...state.partners, newPartner] }));
+
+        // Sync to server
+        try {
+          await get().syncPartnerToServer(newPartner);
+        } catch (error) {
+          console.error('Failed to sync new partner to server:', error);
+        }
 
         return { success: true, partner: newPartner, generatedPassword: password };
       },
@@ -387,19 +416,36 @@ export const useStaffStore = create(
       },
 
       // Update partner
-      updatePartner: (id, updates) => {
+      updatePartner: async (id, updates) => {
         set(state => ({
           partners: state.partners.map(p =>
             p.id === id ? { ...p, ...updates } : p
           )
         }));
+
+        // Sync updated partner to server
+        try {
+          const updatedPartner = get().partners.find(p => p.id === id);
+          if (updatedPartner) {
+            await get().syncPartnerToServer(updatedPartner);
+          }
+        } catch (error) {
+          console.error('Failed to sync updated partner to server:', error);
+        }
       },
 
       // Delete partner
-      deletePartner: (id) => {
+      deletePartner: async (id) => {
         set(state => ({
           partners: state.partners.filter(p => p.id !== id)
         }));
+
+        // Delete from server
+        try {
+          await get().deletePartnerFromServer(id);
+        } catch (error) {
+          console.error('Failed to delete partner from server:', error);
+        }
       },
 
       // Log activity
@@ -537,6 +583,99 @@ export const useStaffStore = create(
       // Get partners by type
       getPartnersByType: (type) => {
         return get().partners.filter(p => p.type === type);
+      },
+
+      // ============ SERVER SYNC FUNCTIONS ============
+      
+      // Fetch partners from server
+      fetchPartnersFromServer: async () => {
+        try {
+          console.log('🔄 Fetching partners from server...');
+          const response = await fetch('/api/partners');
+          if (!response.ok) {
+            throw new Error('Failed to fetch partners');
+          }
+          const serverPartners = await response.json();
+          
+          if (serverPartners && serverPartners.length > 0) {
+            console.log(`✅ ${serverPartners.length} partners loaded from server`);
+            set({ partners: serverPartners });
+            return serverPartners;
+          }
+          
+          console.log('ℹ️ No partners on server, keeping local data');
+          return get().partners;
+        } catch (error) {
+          console.error('❌ Failed to fetch partners from server:', error);
+          return get().partners;
+        }
+      },
+
+      // Upload all partners to server
+      uploadPartnersToServer: async () => {
+        try {
+          const partners = get().partners;
+          console.log(`📤 Uploading ${partners.length} partners to server...`);
+          
+          const response = await fetch('/api/partners/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ partners })
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to sync partners');
+          }
+          
+          const result = await response.json();
+          console.log('✅ Partners synced to server:', result);
+          return true;
+        } catch (error) {
+          console.error('❌ Failed to upload partners to server:', error);
+          return false;
+        }
+      },
+
+      // Sync single partner to server
+      syncPartnerToServer: async (partner) => {
+        try {
+          console.log(`📤 Syncing partner ${partner.id} to server...`);
+          const response = await fetch('/api/partners', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(partner)
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to sync partner');
+          }
+          
+          console.log('✅ Partner synced to server');
+          return true;
+        } catch (error) {
+          console.error('❌ Failed to sync partner to server:', error);
+          return false;
+        }
+      },
+
+      // Delete partner from server
+      deletePartnerFromServer: async (partnerId) => {
+        try {
+          console.log(`🗑️ Deleting partner ${partnerId} from server...`);
+          const response = await fetch(`/api/partners/${partnerId}`, {
+            method: 'DELETE'
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to delete partner from server');
+          }
+          
+          console.log('✅ Partner deleted from server');
+          return true;
+        } catch (error) {
+          console.error('❌ Failed to delete partner from server:', error);
+          return false;
+        }
       }
     }),
     { name: 'staff-storage' }

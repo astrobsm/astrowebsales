@@ -14408,6 +14408,36 @@ export const useContentStore = create(
       syncError: null,
       isServerSynced: false,
 
+      // ==================== SETTER FUNCTIONS FOR SYNC ====================
+      
+      // Set clinical apps (for sync from server)
+      setClinicalApps: (apps) => {
+        if (!Array.isArray(apps)) return;
+        set({ clinicalApps: apps });
+        console.log(`📥 Clinical apps updated: ${apps.length} apps`);
+      },
+      
+      // Set training courses (for sync from server)
+      setTraining: (courses) => {
+        if (!Array.isArray(courses)) return;
+        set({ training: courses });
+        console.log(`📥 Training courses updated: ${courses.length} courses`);
+      },
+      
+      // Set offices (for sync from server)
+      setOffices: (officeList) => {
+        if (!Array.isArray(officeList)) return;
+        set({ offices: officeList });
+        console.log(`📥 Offices updated: ${officeList.length} offices`);
+      },
+      
+      // Set downloads (for sync from server)
+      setDownloads: (downloadList) => {
+        if (!Array.isArray(downloadList)) return;
+        set({ downloads: downloadList });
+        console.log(`📥 Downloads updated: ${downloadList.length} downloads`);
+      },
+
       // ==================== SERVER SYNC FUNCTIONS ====================
       
       // Fetch all content from server (call on app init)

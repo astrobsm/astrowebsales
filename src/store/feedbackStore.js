@@ -6,6 +6,13 @@ export const useFeedbackStore = create(
     (set, get) => ({
       feedbacks: [],
       
+      // Set all feedbacks (for sync from server)
+      setFeedbacks: (feedbacksArray) => {
+        if (!Array.isArray(feedbacksArray)) return;
+        set({ feedbacks: feedbacksArray });
+        console.log(`📥 Feedback store updated with ${feedbacksArray.length} feedbacks`);
+      },
+      
       // Add new feedback
       addFeedback: (feedbackData) => {
         const newFeedback = {

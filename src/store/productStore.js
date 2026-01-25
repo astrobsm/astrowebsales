@@ -25,6 +25,13 @@ export const useProductStore = create(
       products: [], // Start empty - products loaded from database
       categories: PRODUCT_CATEGORIES,
 
+      // Set all products (for sync from server)
+      setProducts: (productsArray) => {
+        if (!Array.isArray(productsArray)) return;
+        set({ products: productsArray });
+        console.log(`📥 Products store updated with ${productsArray.length} products`);
+      },
+
       // Get all active products
       getActiveProducts: () => {
         return get().products.filter((p) => p.isActive);

@@ -122,6 +122,34 @@ async function migrate() {
     \`);
     console.log('✅ downloads table ready');
 
+    // Create partners table if not exists
+    await client.query(\`
+      CREATE TABLE IF NOT EXISTS partners (
+        id VARCHAR(100) PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        company_name VARCHAR(255),
+        contact_name VARCHAR(255),
+        email VARCHAR(255),
+        phone VARCHAR(50),
+        address TEXT,
+        state VARCHAR(100),
+        city VARCHAR(100),
+        type VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'active',
+        must_change_password BOOLEAN DEFAULT true,
+        territory JSONB DEFAULT '[]',
+        bank_name VARCHAR(255),
+        account_number VARCHAR(100),
+        account_name VARCHAR(255),
+        last_login TIMESTAMP,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    \`);
+    console.log('✅ partners table ready');
+
     // Create products table if not exists
     await client.query(\`
       CREATE TABLE IF NOT EXISTS products (
@@ -271,6 +299,103 @@ async function migrate() {
       END \$\$;
     \`);
     console.log('✅ orders table columns verified');
+
+    // Create staff table if not exists
+    await client.query(\`
+      CREATE TABLE IF NOT EXISTS staff (
+        id VARCHAR(100) PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        name VARCHAR(255),
+        email VARCHAR(255),
+        phone VARCHAR(50),
+        role VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'active',
+        must_change_password BOOLEAN DEFAULT true,
+        permissions JSONB DEFAULT '[]',
+        last_login TIMESTAMP,
+        activity_log JSONB DEFAULT '[]',
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    \`);
+    console.log('✅ staff table ready');
+
+    // Create distributors table if not exists
+    await client.query(\`
+      CREATE TABLE IF NOT EXISTS distributors (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        state VARCHAR(100),
+        zone VARCHAR(100),
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        bank_name VARCHAR(255),
+        account_number VARCHAR(100),
+        account_name VARCHAR(255),
+        is_active BOOLEAN DEFAULT true,
+        is_primary BOOLEAN DEFAULT false,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    \`);
+    console.log('✅ distributors table ready');
+
+    // Create feedback table if not exists
+    await client.query(\`
+      CREATE TABLE IF NOT EXISTS feedback (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(255),
+        email VARCHAR(255),
+        phone VARCHAR(50),
+        subject VARCHAR(500),
+        message TEXT,
+        rating INTEGER DEFAULT 0,
+        type VARCHAR(50) DEFAULT 'general',
+        status VARCHAR(50) DEFAULT 'new',
+        priority VARCHAR(50) DEFAULT 'normal',
+        assigned_to VARCHAR(100),
+        responses JSONB DEFAULT '[]',
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    \`);
+    console.log('✅ feedback table ready');
+
+    // Create settings table if not exists
+    await client.query(\`
+      CREATE TABLE IF NOT EXISTS settings (
+        id VARCHAR(100) PRIMARY KEY DEFAULT 'global',
+        company_info JSONB DEFAULT '{}',
+        appearance JSONB DEFAULT '{}',
+        slideshow JSONB DEFAULT '{}',
+        email_settings JSONB DEFAULT '{}',
+        order_settings JSONB DEFAULT '{}',
+        access_settings JSONB DEFAULT '{}',
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    \`);
+    console.log('✅ settings table ready');
+
+    // Create sync_state table for full state sync
+    await client.query(\`
+      CREATE TABLE IF NOT EXISTS sync_state (
+        id VARCHAR(100) PRIMARY KEY DEFAULT 'main',
+        staff_data JSONB DEFAULT '[]',
+        partners_data JSONB DEFAULT '[]',
+        distributors_data JSONB DEFAULT '[]',
+        feedback_data JSONB DEFAULT '[]',
+        settings_data JSONB DEFAULT '{}',
+        last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    \`);
+    console.log('✅ sync_state table ready');
 
     client.release();
     console.log('✅ All migrations complete!');

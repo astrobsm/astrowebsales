@@ -130,6 +130,23 @@ export const useSettingsStore = create(
         sunday: { open: '00:00', close: '00:00', closed: true }
       },
 
+      // Set all settings (for sync from server)
+      setCompanyInfo: (info) => {
+        if (!info || typeof info !== 'object') return;
+        set((state) => ({
+          companyInfo: { ...state.companyInfo, ...info }
+        }));
+        console.log('📥 Company info updated from server');
+      },
+      
+      setAppearance: (settings) => {
+        if (!settings || typeof settings !== 'object') return;
+        set((state) => ({
+          appearance: { ...state.appearance, ...settings }
+        }));
+        console.log('📥 Appearance settings updated from server');
+      },
+
       // Update Company Info
       updateCompanyInfo: (info) => {
         set((state) => ({

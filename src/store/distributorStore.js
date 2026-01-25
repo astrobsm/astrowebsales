@@ -119,6 +119,23 @@ export const useDistributorStore = create(
         distributors: DISTRIBUTORS,
         stateDistributorMap: {},
         
+        // Set all distributors (for sync from server)
+        setDistributors: (distributorsArray) => {
+          if (!Array.isArray(distributorsArray)) return;
+          
+          // Merge with existing if server has no data
+          if (distributorsArray.length === 0) {
+            console.log('📥 Server has no distributors, keeping local data');
+            return;
+          }
+          
+          set({ distributors: distributorsArray });
+          console.log(`📥 Distributors store updated with ${distributorsArray.length} distributors`);
+          
+          // Re-initialize mapping with new distributors
+          get().initializeMapping();
+        },
+        
         // Initialize state-distributor mapping
         initializeMapping: () => {
           const mapping = {};

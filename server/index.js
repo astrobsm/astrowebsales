@@ -1252,6 +1252,717 @@ app.delete('/api/content', async (req, res) => {
   }
 });
 
+// ==================== PARTNERS API ====================
+
+// Get all partners
+app.get('/api/partners', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM partners WHERE active = true ORDER BY created_at DESC'
+    );
+    const partners = result.rows.map(row => ({
+      id: row.id,
+      username: row.username,
+      password: row.password,
+      companyName: row.company_name,
+      contactName: row.contact_name,
+      email: row.email,
+      phone: row.phone,
+      address: row.address,
+      state: row.state,
+      city: row.city,
+      type: row.type,
+      status: row.status,
+      mustChangePassword: row.must_change_password,
+      territory: row.territory || [],
+      bankName: row.bank_name,
+      accountNumber: row.account_number,
+      accountName: row.account_name,
+      lastLogin: row.last_login,
+      createdAt: row.created_at
+    }));
+    res.json(partners);
+  } catch (error) {
+    console.error('Get partners error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create/Update partner
+app.post('/api/partners', async (req, res) => {
+  try {
+    const partner = req.body;
+    
+    const result = await pool.query(`
+      INSERT INTO partners (
+        id, username, password, company_name, contact_name, email, phone, 
+        address, state, city, type, status, must_change_password, territory,
+        bank_name, account_number, account_name, last_login
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      ON CONFLICT (id) DO UPDATE SET
+        username = EXCLUDED.username,
+        password = EXCLUDED.password,
+        company_name = EXCLUDED.company_name,
+        contact_name = EXCLUDED.contact_name,
+        email = EXCLUDED.email,
+        phone = EXCLUDED.phone,
+        address = EXCLUDED.address,
+        state = EXCLUDED.state,
+        city = EXCLUDED.city,
+        type = EXCLUDED.type,
+        status = EXCLUDED.status,
+        must_change_password = EXCLUDED.must_change_password,
+        territory = EXCLUDED.territory,
+        bank_name = EXCLUDED.bank_name,
+        account_number = EXCLUDED.account_number,
+        account_name = EXCLUDED.account_name,
+        last_login = EXCLUDED.last_login,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, [
+      partner.id,
+      partner.username,
+      partner.password,
+      partner.companyName,
+      partner.contactName,
+      partner.email,
+      partner.phone,
+      partner.address,
+      partner.state,
+      partner.city,
+      partner.type,
+      partner.status || 'active',
+      partner.mustChangePassword !== false,
+      JSON.stringify(partner.territory || []),
+      partner.bankName,
+      partner.accountNumber,
+      partner.accountName,
+      partner.lastLogin
+    ]);
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create/Update partner error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk sync partners
+app.post('/api/partners/sync', async (req, res) => {
+  try {
+    const { partners } = req.body;
+    
+    if (!partners || !Array.isArray(partners)) {
+      return res.status(400).json({ error: 'Partners array is required' });
+    }
+    
+    for (const partner of partners) {
+      await pool.query(`
+        INSERT INTO partners (
+          id, username, password, company_name, contact_name, email, phone, 
+          address, state, city, type, status, must_change_password, territory,
+          bank_name, account_number, account_name, last_login
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        ON CONFLICT (id) DO UPDATE SET
+          username = EXCLUDED.username,
+          password = EXCLUDED.password,
+          company_name = EXCLUDED.company_name,
+          contact_name = EXCLUDED.contact_name,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone,
+          address = EXCLUDED.address,
+          state = EXCLUDED.state,
+          city = EXCLUDED.city,
+          type = EXCLUDED.type,
+          status = EXCLUDED.status,
+          must_change_password = EXCLUDED.must_change_password,
+          territory = EXCLUDED.territory,
+          bank_name = EXCLUDED.bank_name,
+          account_number = EXCLUDED.account_number,
+          account_name = EXCLUDED.account_name,
+          last_login = EXCLUDED.last_login,
+          updated_at = CURRENT_TIMESTAMP
+      `, [
+        partner.id,
+        partner.username,
+        partner.password,
+        partner.companyName,
+        partner.contactName,
+        partner.email,
+        partner.phone,
+        partner.address,
+        partner.state,
+        partner.city,
+        partner.type,
+        partner.status || 'active',
+        partner.mustChangePassword !== false,
+        JSON.stringify(partner.territory || []),
+        partner.bankName,
+        partner.accountNumber,
+        partner.accountName,
+        partner.lastLogin
+      ]);
+    }
+    
+    res.json({ success: true, count: partners.length });
+  } catch (error) {
+    console.error('Sync partners error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete partner
+app.delete('/api/partners/:id', async (req, res) => {
+  try {
+    await pool.query('UPDATE partners SET active = false WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete partner error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== COMPREHENSIVE SYNC API ====================
+
+// Full sync - get all data for cross-device sync
+app.get('/api/sync/full', async (req, res) => {
+  try {
+    const [
+      staffResult,
+      partnersResult,
+      distributorsResult,
+      feedbackResult,
+      settingsResult,
+      productsResult,
+      ordersResult,
+      contentResult
+    ] = await Promise.all([
+      pool.query('SELECT * FROM staff WHERE active = true ORDER BY created_at DESC'),
+      pool.query('SELECT * FROM partners WHERE active = true ORDER BY created_at DESC'),
+      pool.query('SELECT * FROM distributors WHERE active = true ORDER BY created_at DESC'),
+      pool.query('SELECT * FROM feedback WHERE active = true ORDER BY created_at DESC'),
+      pool.query('SELECT * FROM settings WHERE id = $1', ['global']),
+      pool.query('SELECT * FROM products WHERE active = true ORDER BY name'),
+      pool.query('SELECT * FROM orders ORDER BY created_at DESC LIMIT 100'),
+      pool.query(`
+        SELECT 
+          (SELECT json_agg(row_to_json(ca)) FROM clinical_apps ca WHERE active = true) as clinical_apps,
+          (SELECT json_agg(row_to_json(tc)) FROM training_courses tc WHERE active = true) as training,
+          (SELECT json_agg(row_to_json(o)) FROM offices o WHERE active = true) as offices,
+          (SELECT json_agg(row_to_json(d)) FROM downloads d WHERE active = true) as downloads
+      `)
+    ]);
+
+    res.json({
+      staff: staffResult.rows.map(row => ({
+        id: row.id,
+        username: row.username,
+        password: row.password,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        role: row.role,
+        status: row.status,
+        mustChangePassword: row.must_change_password,
+        permissions: row.permissions || [],
+        lastLogin: row.last_login,
+        activityLog: row.activity_log || [],
+        createdAt: row.created_at
+      })),
+      partners: partnersResult.rows.map(row => ({
+        id: row.id,
+        username: row.username,
+        password: row.password,
+        companyName: row.company_name,
+        contactName: row.contact_name,
+        email: row.email,
+        phone: row.phone,
+        address: row.address,
+        state: row.state,
+        city: row.city,
+        type: row.type,
+        status: row.status,
+        mustChangePassword: row.must_change_password,
+        territory: row.territory || [],
+        bankName: row.bank_name,
+        accountNumber: row.account_number,
+        accountName: row.account_name,
+        lastLogin: row.last_login,
+        createdAt: row.created_at
+      })),
+      distributors: distributorsResult.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        state: row.state,
+        zone: row.zone,
+        phone: row.phone,
+        email: row.email,
+        bankName: row.bank_name,
+        accountNumber: row.account_number,
+        accountName: row.account_name,
+        isActive: row.is_active,
+        isPrimary: row.is_primary
+      })),
+      feedback: feedbackResult.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        subject: row.subject,
+        message: row.message,
+        rating: row.rating,
+        type: row.type,
+        status: row.status,
+        priority: row.priority,
+        assignedTo: row.assigned_to,
+        responses: row.responses || [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      })),
+      settings: settingsResult.rows[0] ? {
+        companyInfo: settingsResult.rows[0].company_info || {},
+        appearance: settingsResult.rows[0].appearance || {},
+        slideshow: settingsResult.rows[0].slideshow || {},
+        emailSettings: settingsResult.rows[0].email_settings || {},
+        orderSettings: settingsResult.rows[0].order_settings || {},
+        accessSettings: settingsResult.rows[0].access_settings || {}
+      } : null,
+      products: productsResult.rows,
+      orders: ordersResult.rows.map(row => row.order_data || row),
+      content: {
+        clinicalApps: (contentResult.rows[0]?.clinical_apps || []).map(app => ({
+          id: app.app_id || `app-${app.id}`,
+          name: app.name,
+          description: app.description,
+          category: app.category,
+          platform: app.platform,
+          price: app.price,
+          icon: app.icon,
+          url: app.url,
+          iosUrl: app.ios_url,
+          featured: app.featured,
+          rating: parseFloat(app.rating) || 0
+        })),
+        training: (contentResult.rows[0]?.training || []).map(course => ({
+          id: course.course_id || `train-${course.id}`,
+          title: course.title,
+          description: course.description,
+          instructor: course.instructor,
+          duration: course.duration,
+          level: course.level,
+          certification: course.certification,
+          price: course.price,
+          image: course.image_url,
+          students: course.students || 0,
+          rating: parseFloat(course.rating) || 0,
+          modules: course.modules || []
+        })),
+        offices: (contentResult.rows[0]?.offices || []).map(office => ({
+          id: office.office_id || `office-${office.id}`,
+          title: office.title,
+          address: office.address,
+          phone: office.phone,
+          email: office.email,
+          hours: office.hours,
+          isHeadquarters: office.is_headquarters
+        })),
+        downloads: (contentResult.rows[0]?.downloads || []).map(dl => ({
+          id: dl.download_id || `dl-${dl.id}`,
+          title: dl.title,
+          description: dl.description,
+          category: dl.category,
+          fileUrl: dl.file_url,
+          fileSize: dl.file_size,
+          fileType: dl.file_type,
+          downloads: dl.downloads || 0,
+          featured: dl.featured
+        }))
+      },
+      lastSync: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Full sync error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Full sync - push all data
+app.post('/api/sync/full', async (req, res) => {
+  try {
+    const { staff, partners, distributors, feedback, settings, content } = req.body;
+
+    // Sync staff
+    if (staff && staff.length > 0) {
+      for (const s of staff) {
+        await pool.query(`
+          INSERT INTO staff (id, username, password, name, email, phone, role, status, must_change_password, permissions, last_login, activity_log)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT (id) DO UPDATE SET
+            username = EXCLUDED.username,
+            password = EXCLUDED.password,
+            name = EXCLUDED.name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            role = EXCLUDED.role,
+            status = EXCLUDED.status,
+            must_change_password = EXCLUDED.must_change_password,
+            permissions = EXCLUDED.permissions,
+            last_login = EXCLUDED.last_login,
+            activity_log = EXCLUDED.activity_log,
+            updated_at = CURRENT_TIMESTAMP
+        `, [s.id, s.username, s.password, s.name, s.email, s.phone, s.role, s.status, s.mustChangePassword, JSON.stringify(s.permissions || []), s.lastLogin, JSON.stringify(s.activityLog || [])]);
+      }
+    }
+
+    // Sync partners
+    if (partners && partners.length > 0) {
+      for (const p of partners) {
+        await pool.query(`
+          INSERT INTO partners (id, username, password, company_name, contact_name, email, phone, address, state, city, type, status, must_change_password, territory, bank_name, account_number, account_name, last_login)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+          ON CONFLICT (id) DO UPDATE SET
+            username = EXCLUDED.username,
+            password = EXCLUDED.password,
+            company_name = EXCLUDED.company_name,
+            contact_name = EXCLUDED.contact_name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            address = EXCLUDED.address,
+            state = EXCLUDED.state,
+            city = EXCLUDED.city,
+            type = EXCLUDED.type,
+            status = EXCLUDED.status,
+            must_change_password = EXCLUDED.must_change_password,
+            territory = EXCLUDED.territory,
+            bank_name = EXCLUDED.bank_name,
+            account_number = EXCLUDED.account_number,
+            account_name = EXCLUDED.account_name,
+            last_login = EXCLUDED.last_login,
+            updated_at = CURRENT_TIMESTAMP
+        `, [p.id, p.username, p.password, p.companyName, p.contactName, p.email, p.phone, p.address, p.state, p.city, p.type, p.status, p.mustChangePassword, JSON.stringify(p.territory || []), p.bankName, p.accountNumber, p.accountName, p.lastLogin]);
+      }
+    }
+
+    // Sync distributors
+    if (distributors && distributors.length > 0) {
+      for (const d of distributors) {
+        await pool.query(`
+          INSERT INTO distributors (id, name, state, zone, phone, email, bank_name, account_number, account_name, is_active, is_primary)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            state = EXCLUDED.state,
+            zone = EXCLUDED.zone,
+            phone = EXCLUDED.phone,
+            email = EXCLUDED.email,
+            bank_name = EXCLUDED.bank_name,
+            account_number = EXCLUDED.account_number,
+            account_name = EXCLUDED.account_name,
+            is_active = EXCLUDED.is_active,
+            is_primary = EXCLUDED.is_primary,
+            updated_at = CURRENT_TIMESTAMP
+        `, [d.id, d.name, d.state, d.zone, d.phone, d.email, d.bankName, d.accountNumber, d.accountName, d.isActive !== false, d.isPrimary || false]);
+      }
+    }
+
+    // Sync feedback
+    if (feedback && feedback.length > 0) {
+      for (const f of feedback) {
+        await pool.query(`
+          INSERT INTO feedback (id, name, email, phone, subject, message, rating, type, status, priority, assigned_to, responses, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            subject = EXCLUDED.subject,
+            message = EXCLUDED.message,
+            rating = EXCLUDED.rating,
+            type = EXCLUDED.type,
+            status = EXCLUDED.status,
+            priority = EXCLUDED.priority,
+            assigned_to = EXCLUDED.assigned_to,
+            responses = EXCLUDED.responses,
+            updated_at = CURRENT_TIMESTAMP
+        `, [f.id, f.name, f.email, f.phone, f.subject, f.message, f.rating, f.type, f.status, f.priority, f.assignedTo, JSON.stringify(f.responses || []), f.createdAt]);
+      }
+    }
+
+    // Sync settings
+    if (settings) {
+      await pool.query(`
+        INSERT INTO settings (id, company_info, appearance, slideshow, email_settings, order_settings, access_settings)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO UPDATE SET
+          company_info = EXCLUDED.company_info,
+          appearance = EXCLUDED.appearance,
+          slideshow = EXCLUDED.slideshow,
+          email_settings = EXCLUDED.email_settings,
+          order_settings = EXCLUDED.order_settings,
+          access_settings = EXCLUDED.access_settings,
+          updated_at = CURRENT_TIMESTAMP
+      `, ['global', JSON.stringify(settings.companyInfo || {}), JSON.stringify(settings.appearance || {}), JSON.stringify(settings.slideshow || {}), JSON.stringify(settings.emailSettings || {}), JSON.stringify(settings.orderSettings || {}), JSON.stringify(settings.accessSettings || {})]);
+    }
+
+    // Sync content (clinical apps, training, offices, downloads)
+    if (content) {
+      if (content.clinicalApps) {
+        for (const app of content.clinicalApps) {
+          await pool.query(`
+            INSERT INTO clinical_apps (app_id, name, description, category, platform, price, icon, url, ios_url, featured, rating)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (app_id) DO UPDATE SET
+              name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category,
+              platform = EXCLUDED.platform, price = EXCLUDED.price, icon = EXCLUDED.icon,
+              url = EXCLUDED.url, ios_url = EXCLUDED.ios_url, featured = EXCLUDED.featured,
+              rating = EXCLUDED.rating, updated_at = CURRENT_TIMESTAMP
+          `, [app.id, app.name, app.description, app.category, app.platform, app.price, app.icon, app.url, app.iosUrl, app.featured, app.rating]);
+        }
+      }
+
+      if (content.training) {
+        for (const course of content.training) {
+          await pool.query(`
+            INSERT INTO training_courses (course_id, title, description, instructor, duration, level, certification, price, image_url, students, rating, modules)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (course_id) DO UPDATE SET
+              title = EXCLUDED.title, description = EXCLUDED.description, instructor = EXCLUDED.instructor,
+              duration = EXCLUDED.duration, level = EXCLUDED.level, certification = EXCLUDED.certification,
+              price = EXCLUDED.price, image_url = EXCLUDED.image_url, students = EXCLUDED.students,
+              rating = EXCLUDED.rating, modules = EXCLUDED.modules, updated_at = CURRENT_TIMESTAMP
+          `, [course.id, course.title, course.description, course.instructor, course.duration, course.level, course.certification, course.price, course.image, course.students, course.rating, JSON.stringify(course.modules || [])]);
+        }
+      }
+
+      if (content.offices) {
+        for (const office of content.offices) {
+          await pool.query(`
+            INSERT INTO offices (office_id, title, address, phone, email, hours, is_headquarters)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (office_id) DO UPDATE SET
+              title = EXCLUDED.title, address = EXCLUDED.address, phone = EXCLUDED.phone,
+              email = EXCLUDED.email, hours = EXCLUDED.hours, is_headquarters = EXCLUDED.is_headquarters,
+              updated_at = CURRENT_TIMESTAMP
+          `, [office.id, office.title, office.address, office.phone, office.email, office.hours, office.isHeadquarters]);
+        }
+      }
+
+      if (content.downloads) {
+        for (const dl of content.downloads) {
+          await pool.query(`
+            INSERT INTO downloads (download_id, title, description, category, file_url, file_size, file_type, featured, downloads)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (download_id) DO UPDATE SET
+              title = EXCLUDED.title, description = EXCLUDED.description, category = EXCLUDED.category,
+              file_url = EXCLUDED.file_url, file_size = EXCLUDED.file_size, file_type = EXCLUDED.file_type,
+              featured = EXCLUDED.featured, downloads = EXCLUDED.downloads, updated_at = CURRENT_TIMESTAMP
+          `, [dl.id, dl.title, dl.description, dl.category, dl.fileUrl, dl.fileSize, dl.fileType, dl.featured, dl.downloads]);
+        }
+      }
+    }
+
+    // Broadcast sync to other devices via WebSocket
+    io.emit('state-update', {
+      store: 'sync',
+      action: 'full-sync-completed',
+      timestamp: Date.now()
+    });
+
+    res.json({ success: true, message: 'Full sync completed', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Full sync push error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== STAFF API ====================
+
+app.get('/api/staff', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM staff WHERE active = true ORDER BY created_at DESC');
+    res.json(result.rows.map(row => ({
+      id: row.id,
+      username: row.username,
+      password: row.password,
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      role: row.role,
+      status: row.status,
+      mustChangePassword: row.must_change_password,
+      permissions: row.permissions || [],
+      lastLogin: row.last_login,
+      activityLog: row.activity_log || [],
+      createdAt: row.created_at
+    })));
+  } catch (error) {
+    console.error('Get staff error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/staff', async (req, res) => {
+  try {
+    const s = req.body;
+    const result = await pool.query(`
+      INSERT INTO staff (id, username, password, name, email, phone, role, status, must_change_password, permissions)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (id) DO UPDATE SET
+        username = EXCLUDED.username, password = EXCLUDED.password, name = EXCLUDED.name,
+        email = EXCLUDED.email, phone = EXCLUDED.phone, role = EXCLUDED.role,
+        status = EXCLUDED.status, must_change_password = EXCLUDED.must_change_password,
+        permissions = EXCLUDED.permissions, updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, [s.id, s.username, s.password, s.name, s.email, s.phone, s.role, s.status || 'active', s.mustChangePassword !== false, JSON.stringify(s.permissions || [])]);
+    
+    io.emit('state-update', { store: 'staff', action: 'add', payload: result.rows[0], timestamp: Date.now() });
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create staff error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== DISTRIBUTORS API ====================
+
+app.get('/api/distributors', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM distributors WHERE active = true ORDER BY name');
+    res.json(result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      state: row.state,
+      zone: row.zone,
+      phone: row.phone,
+      email: row.email,
+      bankName: row.bank_name,
+      accountNumber: row.account_number,
+      accountName: row.account_name,
+      isActive: row.is_active,
+      isPrimary: row.is_primary
+    })));
+  } catch (error) {
+    console.error('Get distributors error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/distributors', async (req, res) => {
+  try {
+    const d = req.body;
+    const result = await pool.query(`
+      INSERT INTO distributors (id, name, state, zone, phone, email, bank_name, account_number, account_name, is_active, is_primary)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name, state = EXCLUDED.state, zone = EXCLUDED.zone,
+        phone = EXCLUDED.phone, email = EXCLUDED.email, bank_name = EXCLUDED.bank_name,
+        account_number = EXCLUDED.account_number, account_name = EXCLUDED.account_name,
+        is_active = EXCLUDED.is_active, is_primary = EXCLUDED.is_primary, updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, [d.id || `dist-${Date.now()}`, d.name, d.state, d.zone, d.phone, d.email, d.bankName, d.accountNumber, d.accountName, d.isActive !== false, d.isPrimary || false]);
+    
+    io.emit('state-update', { store: 'distributors', action: 'add', payload: result.rows[0], timestamp: Date.now() });
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create distributor error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== FEEDBACK API ====================
+
+app.get('/api/feedback', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM feedback WHERE active = true ORDER BY created_at DESC');
+    res.json(result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      subject: row.subject,
+      message: row.message,
+      rating: row.rating,
+      type: row.type,
+      status: row.status,
+      priority: row.priority,
+      assignedTo: row.assigned_to,
+      responses: row.responses || [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    })));
+  } catch (error) {
+    console.error('Get feedback error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const f = req.body;
+    const result = await pool.query(`
+      INSERT INTO feedback (id, name, email, phone, subject, message, rating, type, status, priority, assigned_to, responses)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name, email = EXCLUDED.email, phone = EXCLUDED.phone,
+        subject = EXCLUDED.subject, message = EXCLUDED.message, rating = EXCLUDED.rating,
+        type = EXCLUDED.type, status = EXCLUDED.status, priority = EXCLUDED.priority,
+        assigned_to = EXCLUDED.assigned_to, responses = EXCLUDED.responses, updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, [f.id || `FB-${Date.now()}`, f.name, f.email, f.phone, f.subject, f.message, f.rating || 0, f.type || 'general', f.status || 'new', f.priority || 'normal', f.assignedTo, JSON.stringify(f.responses || [])]);
+    
+    io.emit('state-update', { store: 'feedback', action: 'add', payload: result.rows[0], timestamp: Date.now() });
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create feedback error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== SETTINGS API ====================
+
+app.get('/api/settings', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM settings WHERE id = $1', ['global']);
+    if (result.rows[0]) {
+      res.json({
+        companyInfo: result.rows[0].company_info || {},
+        appearance: result.rows[0].appearance || {},
+        slideshow: result.rows[0].slideshow || {},
+        emailSettings: result.rows[0].email_settings || {},
+        orderSettings: result.rows[0].order_settings || {},
+        accessSettings: result.rows[0].access_settings || {}
+      });
+    } else {
+      res.json(null);
+    }
+  } catch (error) {
+    console.error('Get settings error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/settings', async (req, res) => {
+  try {
+    const s = req.body;
+    const result = await pool.query(`
+      INSERT INTO settings (id, company_info, appearance, slideshow, email_settings, order_settings, access_settings)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (id) DO UPDATE SET
+        company_info = EXCLUDED.company_info, appearance = EXCLUDED.appearance,
+        slideshow = EXCLUDED.slideshow, email_settings = EXCLUDED.email_settings,
+        order_settings = EXCLUDED.order_settings, access_settings = EXCLUDED.access_settings,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, ['global', JSON.stringify(s.companyInfo || {}), JSON.stringify(s.appearance || {}), JSON.stringify(s.slideshow || {}), JSON.stringify(s.emailSettings || {}), JSON.stringify(s.orderSettings || {}), JSON.stringify(s.accessSettings || {})]);
+    
+    io.emit('state-update', { store: 'settings', action: 'update', payload: s, timestamp: Date.now() });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Save settings error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== DATABASE STATUS API ====================
 
 app.get('/api/status', async (req, res) => {
