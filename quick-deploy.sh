@@ -359,9 +359,10 @@ async function migrate() {
     \`);
     console.log('✅ active column verified for all tables');
 
-    // Create staff table if not exists
+    // Drop and recreate staff table with correct schema
+    await client.query(\`DROP TABLE IF EXISTS staff CASCADE\`);
     await client.query(\`
-      CREATE TABLE IF NOT EXISTS staff (
+      CREATE TABLE staff (
         id VARCHAR(100) PRIMARY KEY,
         username VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
@@ -379,7 +380,7 @@ async function migrate() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     \`);
-    console.log('✅ staff table ready');
+    console.log('✅ staff table recreated with correct schema');
 
     // Create distributors table if not exists
     await client.query(\`
@@ -424,22 +425,22 @@ async function migrate() {
     \`);
     console.log('✅ feedback table ready');
 
-    // Create settings table if not exists
+    // Drop and recreate settings table with correct schema
+    await client.query(\`DROP TABLE IF EXISTS settings CASCADE\`);
     await client.query(\`
-      CREATE TABLE IF NOT EXISTS settings (
+      CREATE TABLE settings (
         id VARCHAR(100) PRIMARY KEY DEFAULT 'global',
         company_info JSONB DEFAULT '{}',
         appearance JSONB DEFAULT '{}',
         slideshow JSONB DEFAULT '{}',
         email_settings JSONB DEFAULT '{}',
         order_settings JSONB DEFAULT '{}',
-        access_settings JSONB DEFAULT '{}',
         active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     \`);
-    console.log('✅ settings table ready');
+    console.log('✅ settings table recreated with correct schema');
 
     // Create sync_state table for full state sync
     await client.query(\`
