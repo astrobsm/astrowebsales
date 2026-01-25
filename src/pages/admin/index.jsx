@@ -1212,15 +1212,59 @@ export const AdminProducts = () => {
 // AdminOrders
 export const AdminOrders = () => {
   const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
+  const { distributors, getDistributorForState } = useDistributorStore();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Default Bonnesante Medicals bank details (fallback when no distributor)
+  const DEFAULT_BANK_DETAILS = {
+    bankName: 'First Bank',
+    accountNumber: '2035307306',
+    accountName: 'Bonnesante Medicals'
+  };
+
   // Fetch orders from database on mount
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Get payment details for an order based on customer state
+  const getPaymentDetails = (order) => {
+    // First check if order has a specific distributor assigned
+    if (order.distributorId) {
+      const assignedDistributor = distributors.find(d => d.id === order.distributorId);
+      if (assignedDistributor && assignedDistributor.bankName && assignedDistributor.accountNumber) {
+        return {
+          bankName: assignedDistributor.bankName,
+          accountNumber: assignedDistributor.accountNumber,
+          accountName: assignedDistributor.accountName || assignedDistributor.name,
+          distributorName: assignedDistributor.name
+        };
+      }
+    }
+    
+    // Otherwise, find distributor for customer's state
+    const customerState = order.customerState || order.state;
+    if (customerState) {
+      const stateDistributor = getDistributorForState(customerState);
+      if (stateDistributor && stateDistributor.bankName && stateDistributor.accountNumber) {
+        return {
+          bankName: stateDistributor.bankName,
+          accountNumber: stateDistributor.accountNumber,
+          accountName: stateDistributor.accountName || stateDistributor.name,
+          distributorName: stateDistributor.name
+        };
+      }
+    }
+    
+    // Fallback to Bonnesante Medicals default account
+    return {
+      ...DEFAULT_BANK_DETAILS,
+      distributorName: 'Bonnesante Medicals (Head Office)'
+    };
+  };
 
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800',
@@ -1382,7 +1426,47 @@ export const AdminOrders = () => {
       doc.text('TOTAL:', 130, y);
       doc.text(`N${(order.totalAmount || 0).toLocaleString()}`, 165, y);
       doc.setTextColor(0, 0, 0);
-      y += 20;
+      y += 15;
+
+      // Payment Details Section
+      const paymentDetails = getPaymentDetails(order);
+      
+      doc.setFillColor(255, 248, 220); // Light yellow background
+      doc.rect(15, y - 4, pageWidth - 30, 45, 'F');
+      doc.setDrawColor(40, 125, 77);
+      doc.rect(15, y - 4, pageWidth - 30, 45, 'S');
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 125, 77);
+      doc.text('PAYMENT DETAILS', 20, y + 2);
+      y += 10;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Bank Name:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(paymentDetails.bankName, 70, y);
+      y += 7;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Account Number:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(paymentDetails.accountNumber, 70, y);
+      y += 7;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Account Name:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(paymentDetails.accountName, 70, y);
+      y += 7;
+      
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`(Payment to: ${paymentDetails.distributorName})`, 20, y);
+      y += 15;
 
       // Footer
       doc.setFontSize(10);
@@ -1404,8 +1488,10 @@ export const AdminOrders = () => {
   };
 
   const shareViaWhatsApp = (order) => {
+    const paymentDetails = getPaymentDetails(order);
+    
     const message = `
-*BONNESANTE MEDICALS - Order Details*
+*BONNESANTE MEDICALS - Order Invoice*
 ━━━━━━━━━━━━━━━━━━━━
 
 📋 *Order #:* ${order.orderNumber}
@@ -1414,6 +1500,7 @@ export const AdminOrders = () => {
 
 👤 *Customer:* ${order.customerName}
 📞 *Phone:* ${order.customerPhone || 'N/A'}
+📍 *State:* ${order.customerState || order.state || 'N/A'}
 
 📦 *Items:*
 ${order.items?.map(item => 
@@ -1423,8 +1510,17 @@ ${order.items?.map(item =>
 💰 *Total:* ₦${order.totalAmount?.toLocaleString()}
 
 ━━━━━━━━━━━━━━━━━━━━
+💳 *PAYMENT DETAILS*
+━━━━━━━━━━━━━━━━━━━━
+🏦 *Bank:* ${paymentDetails.bankName}
+🔢 *Account No:* ${paymentDetails.accountNumber}
+👤 *Account Name:* ${paymentDetails.accountName}
+📍 *Pay to:* ${paymentDetails.distributorName}
+
+━━━━━━━━━━━━━━━━━━━━
 _Bonnesante Medicals_
 _Your Wound Care Partner_
+_+234 902 872 4839_
     `.trim();
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
