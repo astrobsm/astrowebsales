@@ -47,10 +47,10 @@ import AdminAccessSettings from './pages/admin/AdminAccessSettings';
 import AdminDataSync from './pages/admin/AdminDataSync';
 
 // Distributor Dashboard
-import { DistributorDashboard, DistributorOrders, DistributorInventory, DistributorHistory } from './pages/distributor';
+import { DistributorDashboard, DistributorOrders, DistributorInventory, DistributorHistory, DistributorProducts, DistributorPerformance } from './pages/distributor';
 
 // Wholesaler Dashboard
-import { WholesalerDashboard, WholesalerOrders } from './pages/wholesaler';
+import { WholesalerDashboard, WholesalerOrders, WholesalerProducts, WholesalerPerformance } from './pages/wholesaler';
 
 // Customer Care Dashboard
 import { CCODashboard, CCOEscalations, CCOCommunications, CCOFeedback } from './pages/cco';
@@ -198,7 +198,9 @@ function App() {
           }>
             <Route index element={<DistributorDashboard />} />
             <Route path="orders" element={<DistributorOrders />} />
+            <Route path="products" element={<DistributorProducts />} />
             <Route path="inventory" element={<DistributorInventory />} />
+            <Route path="performance" element={<DistributorPerformance />} />
             <Route path="feedback" element={<StaffFeedback canRespond={true} />} />
             <Route path="history" element={<DistributorHistory />} />
           </Route>
@@ -210,7 +212,9 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<WholesalerDashboard />} />
+            <Route path="products" element={<WholesalerProducts />} />
             <Route path="orders" element={<WholesalerOrders />} />
+            <Route path="performance" element={<WholesalerPerformance />} />
             <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
           </Route>
 

@@ -61,15 +61,19 @@ const DashboardLayout = ({ role }) => {
       case 'distributor':
         return [
           { path: '/distributor', icon: LayoutDashboard, label: 'Dashboard' },
-          { path: '/distributor/orders', icon: ShoppingCart, label: 'Orders' },
-          { path: '/distributor/inventory', icon: Package, label: 'Inventory' },
+          { path: '/distributor/products', icon: Package, label: 'Order Products' },
+          { path: '/distributor/orders', icon: ShoppingCart, label: 'My Orders' },
+          { path: '/distributor/inventory', icon: Truck, label: 'Inventory' },
+          { path: '/distributor/performance', icon: TrendingUp, label: 'Performance' },
           { path: '/distributor/feedback', icon: MessageCircle, label: 'Feedback' },
           { path: '/distributor/history', icon: History, label: 'History' }
         ];
       case 'wholesaler':
         return [
           { path: '/wholesaler', icon: LayoutDashboard, label: 'Dashboard' },
-          { path: '/wholesaler/orders', icon: ShoppingCart, label: 'Orders' },
+          { path: '/wholesaler/products', icon: Package, label: 'Order Products' },
+          { path: '/wholesaler/orders', icon: ShoppingCart, label: 'My Orders' },
+          { path: '/wholesaler/performance', icon: TrendingUp, label: 'Performance' },
           { path: '/wholesaler/feedback', icon: MessageCircle, label: 'Feedback' }
         ];
       case 'cco':
