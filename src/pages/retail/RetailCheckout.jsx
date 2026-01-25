@@ -24,9 +24,25 @@ const RetailCheckout = () => {
   const [paymentProof, setPaymentProof] = useState(null);
   const [selectedState, setSelectedState] = useState(user?.state || '');
 
+  // Default fallback distributor - Bonnesante Medicals Enugu (Head Office)
+  const DEFAULT_DISTRIBUTOR = {
+    id: 'default-enugu',
+    companyName: 'Bonnesante Medicals (Head Office)',
+    contactName: 'Bonnesante Medicals',
+    phone: '07076793866',
+    email: 'bonnesantemedicals@gmail.com',
+    address: 'Enugu',
+    state: 'Enugu',
+    bankName: 'Access Bank',
+    accountNumber: '1379643548',
+    accountName: 'Bonnesante Medicals',
+    type: 'distributor',
+    status: 'active'
+  };
+
   // Find distributor for the selected state
   const stateDistributor = useMemo(() => {
-    if (!selectedState) return null;
+    if (!selectedState) return DEFAULT_DISTRIBUTOR;
     
     // Find active distributor in the same state
     const distributor = partners.find(
@@ -35,7 +51,13 @@ const RetailCheckout = () => {
            p.state?.toLowerCase() === selectedState.toLowerCase()
     );
     
-    if (distributor) return distributor;
+    if (distributor) {
+      // Check if distributor has bank details, if not use default
+      if (!distributor.bankName || !distributor.accountNumber) {
+        return { ...distributor, bankName: DEFAULT_DISTRIBUTOR.bankName, accountNumber: DEFAULT_DISTRIBUTOR.accountNumber, accountName: DEFAULT_DISTRIBUTOR.accountName };
+      }
+      return distributor;
+    }
     
     // If no state-specific distributor, find by zone
     const stateInfo = NIGERIAN_STATES.find(s => s.name.toLowerCase() === selectedState.toLowerCase());
@@ -45,11 +67,16 @@ const RetailCheckout = () => {
              p.status === 'active' && 
              NIGERIAN_STATES.find(s => s.name === p.state)?.zone === stateInfo.zone
       );
-      if (zoneDistributor) return zoneDistributor;
+      if (zoneDistributor) {
+        if (!zoneDistributor.bankName || !zoneDistributor.accountNumber) {
+          return { ...zoneDistributor, bankName: DEFAULT_DISTRIBUTOR.bankName, accountNumber: DEFAULT_DISTRIBUTOR.accountNumber, accountName: DEFAULT_DISTRIBUTOR.accountName };
+        }
+        return zoneDistributor;
+      }
     }
     
-    // Fallback to any active distributor
-    return partners.find(p => p.type === 'distributor' && p.status === 'active') || null;
+    // Fallback to default Enugu distributor
+    return DEFAULT_DISTRIBUTOR;
   }, [selectedState, partners]);
 
   useEffect(() => {
@@ -384,9 +411,9 @@ const RetailCheckout = () => {
 
               <button 
                 type="submit" 
-                disabled={!stateDistributor || !selectedState}
+                disabled={!selectedState}
                 className={`w-full flex items-center justify-center mb-4 ${
-                  !stateDistributor || !selectedState 
+                  !selectedState 
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed py-3 px-6 rounded-lg font-semibold' 
                     : 'btn-primary'
                 }`}
@@ -395,9 +422,9 @@ const RetailCheckout = () => {
                 <ArrowRight size={18} className="ml-2" />
               </button>
               
-              {(!stateDistributor || !selectedState) && (
+              {!selectedState && (
                 <p className="text-center text-sm text-orange-600 mb-4">
-                  {!selectedState ? 'Please select your state to continue' : 'No distributor available for your state'}
+                  Please select your state to continue
                 </p>
               )}
 
