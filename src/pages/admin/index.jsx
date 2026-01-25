@@ -1300,6 +1300,55 @@ export const AdminOrders = () => {
     setShowDetailsModal(true);
   };
 
+  // Convert number to words (Nigerian Naira)
+  const numberToWords = (num) => {
+    if (num === 0) return 'Zero Naira Only';
+    
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+      'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    
+    const convertLessThanThousand = (n) => {
+      if (n === 0) return '';
+      if (n < 20) return ones[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + convertLessThanThousand(n % 100) : '');
+    };
+    
+    const convertToWords = (n) => {
+      if (n === 0) return 'Zero';
+      
+      let result = '';
+      
+      if (n >= 1000000) {
+        result += convertLessThanThousand(Math.floor(n / 1000000)) + ' Million ';
+        n %= 1000000;
+      }
+      
+      if (n >= 1000) {
+        result += convertLessThanThousand(Math.floor(n / 1000)) + ' Thousand ';
+        n %= 1000;
+      }
+      
+      if (n > 0) {
+        result += convertLessThanThousand(n);
+      }
+      
+      return result.trim();
+    };
+    
+    const amount = Math.floor(num);
+    const kobo = Math.round((num - amount) * 100);
+    
+    let words = convertToWords(amount) + ' Naira';
+    if (kobo > 0) {
+      words += ' and ' + convertToWords(kobo) + ' Kobo';
+    }
+    words += ' Only';
+    
+    return words;
+  };
+
   const generateOrderPDF = (order) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -1388,22 +1437,27 @@ export const AdminOrders = () => {
       doc.setTextColor(255, 255, 255);
       doc.rect(15, y - 4, pageWidth - 30, 8, 'F');
       doc.text('Item', 20, y);
-      doc.text('Unit', 90, y);
-      doc.text('Qty', 115, y);
-      doc.text('Price', 135, y);
+      doc.text('Unit', 85, y);
+      doc.text('Qty', 105, y);
+      doc.text('Unit Price', 125, y);
       doc.text('Total', 165, y);
       y += 8;
       doc.setTextColor(0, 0, 0);
 
       // Table Rows
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
       if (order.items && order.items.length > 0) {
         order.items.forEach((item) => {
-          const itemTotal = (item.quantity * item.price) || 0;
-          doc.text(item.name?.substring(0, 30) || 'Item', 20, y);
-          doc.text(item.unit || 'Pcs', 90, y);
-          doc.text(String(item.quantity || 0), 115, y);
-          doc.text(`N${(item.price || 0).toLocaleString()}`, 135, y);
+          // Get unit price - check multiple property names
+          const unitPrice = item.unitPrice || item.price || item.retailPrice || 0;
+          const qty = item.quantity || item.qty || 1;
+          const itemTotal = qty * unitPrice;
+          
+          doc.text((item.name || item.productName || 'Item').substring(0, 28), 20, y);
+          doc.text(item.unit || 'Pcs', 85, y);
+          doc.text(String(qty), 108, y);
+          doc.text(`N${unitPrice.toLocaleString()}`, 125, y);
           doc.text(`N${itemTotal.toLocaleString()}`, 165, y);
           y += 7;
         });
@@ -1413,6 +1467,7 @@ export const AdminOrders = () => {
       }
 
       y += 5;
+      doc.setFontSize(10);
 
       // Summary
       doc.setDrawColor(200, 200, 200);
@@ -1435,7 +1490,16 @@ export const AdminOrders = () => {
       doc.text('TOTAL:', 130, y);
       doc.text(`N${(order.totalAmount || 0).toLocaleString()}`, 165, y);
       doc.setTextColor(0, 0, 0);
-      y += 15;
+      y += 8;
+      
+      // Amount in Words
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(80, 80, 80);
+      const amountInWords = numberToWords(order.totalAmount || 0);
+      doc.text(`Amount in Words: ${amountInWords}`, 20, y);
+      doc.setTextColor(0, 0, 0);
+      y += 12;
 
       // Payment Details Section
       const paymentDetails = getPaymentDetails(order);
@@ -1563,11 +1627,15 @@ export const AdminOrders = () => {
 📍 *State:* ${order.customerState || order.state || 'N/A'}
 
 📦 *Items:*
-${order.items?.map(item => 
-  `• ${item.name} x${item.quantity} - ₦${(item.quantity * item.price)?.toLocaleString()}`
-).join('\n') || 'No items listed'}
+${order.items?.map(item => {
+  const name = item.name || item.productName || 'Item';
+  const price = item.unitPrice || item.price || 0;
+  const qty = item.quantity || 1;
+  return `• ${name} x${qty} @ ₦${price.toLocaleString()} = ₦${(qty * price).toLocaleString()}`;
+}).join('\n') || 'No items listed'}
 
 💰 *Total:* ₦${order.totalAmount?.toLocaleString()}
+📝 *Amount in Words:* ${numberToWords(order.totalAmount || 0)}
 
 ━━━━━━━━━━━━━━━━━━━━${paymentSection}
 ━━━━━━━━━━━━━━━━━━━━
@@ -1736,19 +1804,25 @@ _+234 902 872 4839_
                       <tr>
                         <th className="text-left py-2 px-4 text-sm font-medium text-gray-700">Item</th>
                         <th className="text-center py-2 px-4 text-sm font-medium text-gray-700">Qty</th>
-                        <th className="text-right py-2 px-4 text-sm font-medium text-gray-700">Price</th>
+                        <th className="text-right py-2 px-4 text-sm font-medium text-gray-700">Unit Price</th>
                         <th className="text-right py-2 px-4 text-sm font-medium text-gray-700">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedOrder.items?.map((item, idx) => (
-                        <tr key={idx} className="border-t">
-                          <td className="py-2 px-4 text-sm">{item.name}</td>
-                          <td className="py-2 px-4 text-sm text-center">{item.quantity}</td>
-                          <td className="py-2 px-4 text-sm text-right">₦{item.price?.toLocaleString()}</td>
-                          <td className="py-2 px-4 text-sm text-right font-medium">₦{(item.quantity * item.price)?.toLocaleString()}</td>
-                        </tr>
-                      ))}
+                      {selectedOrder.items?.map((item, idx) => {
+                        const itemName = item.name || item.productName || 'Item';
+                        const itemPrice = item.unitPrice || item.price || 0;
+                        const itemQty = item.quantity || item.qty || 1;
+                        const itemTotal = itemQty * itemPrice;
+                        return (
+                          <tr key={idx} className="border-t">
+                            <td className="py-2 px-4 text-sm">{itemName}</td>
+                            <td className="py-2 px-4 text-sm text-center">{itemQty}</td>
+                            <td className="py-2 px-4 text-sm text-right">₦{itemPrice?.toLocaleString()}</td>
+                            <td className="py-2 px-4 text-sm text-right font-medium">₦{itemTotal?.toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
