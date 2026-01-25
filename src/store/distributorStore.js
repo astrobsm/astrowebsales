@@ -43,74 +43,8 @@ export const NIGERIAN_STATES = [
   { name: 'Zamfara', zone: 'North West' }
 ];
 
-// Mock Distributors
-export const DISTRIBUTORS = [
-  {
-    id: 'dist-lagos-1',
-    name: 'Lagos Prime Distributors',
-    state: 'Lagos',
-    zone: 'South West',
-    phone: '+234-801-234-5678',
-    email: 'lagos@bonnesante-dist.com',
-    bankName: 'First Bank',
-    accountNumber: '1234567890',
-    accountName: 'Lagos Prime Distributors Ltd',
-    isActive: true,
-    isPrimary: true
-  },
-  {
-    id: 'dist-abuja-1',
-    name: 'FCT Medical Supplies',
-    state: 'FCT',
-    zone: 'North Central',
-    phone: '+234-802-345-6789',
-    email: 'fct@bonnesante-dist.com',
-    bankName: 'GTBank',
-    accountNumber: '0987654321',
-    accountName: 'FCT Medical Supplies Ltd',
-    isActive: true,
-    isPrimary: true
-  },
-  {
-    id: 'dist-ph-1',
-    name: 'Rivers Healthcare Partners',
-    state: 'Rivers',
-    zone: 'South South',
-    phone: '+234-803-456-7890',
-    email: 'rivers@bonnesante-dist.com',
-    bankName: 'Access Bank',
-    accountNumber: '1122334455',
-    accountName: 'Rivers Healthcare Partners',
-    isActive: true,
-    isPrimary: true
-  },
-  {
-    id: 'dist-kano-1',
-    name: 'Kano Medical Hub',
-    state: 'Kano',
-    zone: 'North West',
-    phone: '+234-804-567-8901',
-    email: 'kano@bonnesante-dist.com',
-    bankName: 'Zenith Bank',
-    accountNumber: '5566778899',
-    accountName: 'Kano Medical Hub Ltd',
-    isActive: true,
-    isPrimary: true
-  },
-  {
-    id: 'dist-enugu-1',
-    name: 'Bonnesante Medicals Enugu',
-    state: 'Enugu',
-    zone: 'South East',
-    phone: '+234-805-678-9012',
-    email: 'enugu@bonnesante-dist.com',
-    bankName: 'UBA',
-    accountNumber: '6677889900',
-    accountName: 'Bonnesante Medicals Enugu',
-    isActive: true,
-    isPrimary: true
-  }
-];
+// Mock Distributors - Now empty, use partners from staffStore instead
+export const DISTRIBUTORS = [];
 
 export const useDistributorStore = create(
   subscribeWithSelector(

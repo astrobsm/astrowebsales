@@ -1890,8 +1890,8 @@ export const AdminDistributors = () => {
   const { distributors, addDistributor, updateDistributor } = useDistributorStore();
   const { partners } = useStaffStore();
   
-  // Combine distributors from both stores - distributorStore AND partners with type='distributor'
-  const partnerDistributors = partners.filter(p => p.type === 'distributor').map(p => ({
+  // Only use partners with type='distributor' from staffStore (real data)
+  const allDistributors = partners.filter(p => p.type === 'distributor').map(p => ({
     id: p.id,
     name: p.companyName || p.contactName || p.username,
     email: p.email,
@@ -1902,14 +1902,8 @@ export const AdminDistributors = () => {
     bankName: p.bankName || '',
     accountNumber: p.accountNumber || '',
     accountName: p.accountName || '',
-    source: 'partner' // Track where this came from
+    source: 'partner'
   }));
-  
-  // Combine both sources, avoiding duplicates by email
-  const allDistributors = [
-    ...distributors.map(d => ({ ...d, source: 'distributor' })),
-    ...partnerDistributors.filter(pd => !distributors.some(d => d.email === pd.email))
-  ];
   
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
