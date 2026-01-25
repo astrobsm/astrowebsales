@@ -226,12 +226,17 @@ export const WholesalerProducts = () => {
         customerState: user?.state,
         items: cart.map(item => ({
           productId: item.productId,
-          productName: item.productName,
+          name: item.productName || item.name || 'Product',
+          productName: item.productName || item.name || 'Product',
+          sku: item.productSku || item.sku || '',
           quantity: item.quantity,
+          price: item.unitPrice,
           unitPrice: item.unitPrice,
+          unit: item.unit || 'Pcs',
           subtotal: item.unitPrice * item.quantity
         })),
         totalAmount: cartTotal,
+        subtotal: cartTotal,
         deliveryMode: 'pickup',
         urgencyLevel: 'routine',
         deliveryNotes: deliveryNotes,

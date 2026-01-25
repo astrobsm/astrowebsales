@@ -48,6 +48,16 @@ const RetailCheckout = () => {
     // Use state-based distributor
     const distributor = stateDistributor || user?.assignedDistributor;
 
+    // Normalize items to ensure both name and productName exist
+    const normalizedItems = items.map(item => ({
+      ...item,
+      name: item.name || item.productName || 'Product',
+      productName: item.productName || item.name || 'Product',
+      price: item.price || item.unitPrice || 0,
+      unitPrice: item.unitPrice || item.price || 0,
+      unit: item.unit || 'Pcs'
+    }));
+
     const order = createOrder({
       customerId: user.id,
       customerName: user.name,
@@ -61,7 +71,7 @@ const RetailCheckout = () => {
       distributorBankName: distributor?.bankName,
       distributorAccountNumber: distributor?.accountNumber,
       distributorAccountName: distributor?.accountName,
-      items: items,
+      items: normalizedItems,
       subtotal,
       deliveryMode,
       urgency,
