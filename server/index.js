@@ -1605,9 +1605,11 @@ app.post('/api/sync/full', async (req, res) => {
 
     // Sync staff
     if (staff && staff.length > 0) {
+      console.log(`📥 Syncing ${staff.length} staff members...`);
       for (const s of staff) {
         try {
-          await pool.query(`
+          // First try to update by ID, then try by username
+          const result = await pool.query(`
             INSERT INTO staff (id, username, password, name, email, phone, role, status, must_change_password, permissions, last_login, activity_log)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             ON CONFLICT (id) DO UPDATE SET
@@ -1623,10 +1625,37 @@ app.post('/api/sync/full', async (req, res) => {
               last_login = EXCLUDED.last_login,
               activity_log = EXCLUDED.activity_log,
               updated_at = CURRENT_TIMESTAMP
+            RETURNING id
           `, [s.id, s.username, s.password, s.name, s.email, s.phone, s.role, s.status || 'active', s.mustChangePassword !== false, JSON.stringify(s.permissions || []), s.lastLogin || null, JSON.stringify(s.activityLog || [])]);
+          console.log(`✅ Synced staff: ${s.username} (${s.id})`);
         } catch (err) {
-          console.error('Staff sync error:', err.message);
-          errors.push(`Staff ${s.id}: ${err.message}`);
+          // If username conflict, try updating by username instead
+          if (err.code === '23505' && err.constraint && err.constraint.includes('username')) {
+            try {
+              await pool.query(`
+                UPDATE staff SET
+                  password = $2,
+                  name = $3,
+                  email = $4,
+                  phone = $5,
+                  role = $6,
+                  status = $7,
+                  must_change_password = $8,
+                  permissions = $9,
+                  last_login = $10,
+                  activity_log = $11,
+                  updated_at = CURRENT_TIMESTAMP
+                WHERE username = $1
+              `, [s.username, s.password, s.name, s.email, s.phone, s.role, s.status || 'active', s.mustChangePassword !== false, JSON.stringify(s.permissions || []), s.lastLogin || null, JSON.stringify(s.activityLog || [])]);
+              console.log(`✅ Updated staff by username: ${s.username}`);
+            } catch (updateErr) {
+              console.error(`Staff update error for ${s.username}:`, updateErr.message);
+              errors.push(`Staff ${s.id}: ${updateErr.message}`);
+            }
+          } else {
+            console.error(`Staff sync error for ${s.username}:`, err.message);
+            errors.push(`Staff ${s.id}: ${err.message}`);
+          }
         }
       }
     }
