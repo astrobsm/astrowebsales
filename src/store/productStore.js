@@ -57,15 +57,22 @@ export const useProductStore = create(
         const product = get().products.find((p) => p.id === productId);
         if (!product) return 0;
         
+        // Handle products without prices object
+        if (!product.prices) {
+          // Try to get price from direct price field
+          return product.price || product.retailPrice || 0;
+        }
+        
         switch (userType) {
           case 'distributor':
-            return product.prices.distributor;
+            return product.prices.distributor || product.prices.retail || product.price || 0;
           case 'wholesaler':
             // Wholesalers get 10% off retail price
-            return Math.round(product.prices.retail * 0.9);
+            const retailPrice = product.prices.retail || product.price || 0;
+            return Math.round(retailPrice * 0.9);
           case 'retail':
           default:
-            return product.prices.retail;
+            return product.prices.retail || product.price || 0;
         }
       },
 

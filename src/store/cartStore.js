@@ -124,13 +124,25 @@ export const useCartStore = create(
             items: items.map(item => {
               const product = useProductStore.getState().getProductById(item.productId);
               
-              // Recalculate price
+              // If product doesn't exist in store, keep original item data
+              if (!product) {
+                return {
+                  ...item,
+                  subtotal: item.quantity * (item.price || 0)
+                };
+              }
+              
+              // Recalculate price with safe fallbacks
               let price = useProductStore.getState().getPriceForUserType(item.productId, userType);
               if (!price && product?.prices) {
-                price = userType === 'distributor' ? product.prices.distributor : product.prices.retail;
+                price = userType === 'distributor' 
+                  ? (product.prices.distributor || product.prices.retail) 
+                  : product.prices.retail;
               }
-              // Keep original price if still no price found
-              price = price || item.price || 0;
+              // Fallback to direct price field
+              if (!price) {
+                price = product?.price || product?.retailPrice || item.price || 0;
+              }
               
               return {
                 ...item,
