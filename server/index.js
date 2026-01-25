@@ -1056,12 +1056,13 @@ app.get('/api/distributor-inventory/:distributorId/summary', async (req, res) =>
     const result = await pool.query(`
       SELECT 
         COUNT(*) as total_products,
-        SUM(quantity) as total_units,
-        SUM(quantity * COALESCE(cost_price, 0)) as total_value,
-        COUNT(CASE WHEN quantity <= reorder_level THEN 1 END) as low_stock_count,
-        COUNT(CASE WHEN quantity = 0 THEN 1 END) as out_of_stock_count
-      FROM distributor_inventory
-      WHERE distributor_id = $1
+        SUM(di.quantity) as total_units,
+        SUM(di.quantity * COALESCE(NULLIF(di.cost_price, 0), p.price_distributor, 0)) as total_value,
+        COUNT(CASE WHEN di.quantity <= di.reorder_level THEN 1 END) as low_stock_count,
+        COUNT(CASE WHEN di.quantity = 0 THEN 1 END) as out_of_stock_count
+      FROM distributor_inventory di
+      LEFT JOIN products p ON di.product_id = p.id
+      WHERE di.distributor_id = $1
     `, [distributorId]);
     
     const summary = result.rows[0];
