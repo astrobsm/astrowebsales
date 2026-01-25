@@ -4,9 +4,16 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-// Use DATABASE_URL environment variable
+// Use individual environment variables (same as server/database.js)
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  user: process.env.DB_USER || 'doadmin',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'defaultdb',
+  password: process.env.DB_PASSWORD,
+  port: parseInt(process.env.DB_PORT) || 5432,
+  ssl: process.env.DB_SSL === 'true' ? {
+    rejectUnauthorized: false
+  } : false
 });
 
 async function fixDatabaseSchema() {
