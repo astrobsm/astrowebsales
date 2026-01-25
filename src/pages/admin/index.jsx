@@ -1220,8 +1220,8 @@ export const AdminOrders = () => {
 
   // Default Bonnesante Medicals bank details (fallback when no distributor)
   const DEFAULT_BANK_DETAILS = {
-    bankName: 'First Bank',
-    accountNumber: '2035307306',
+    bankName: 'Moniepoint',
+    accountNumber: '8259518195',
     accountName: 'Bonnesante Medicals'
   };
 
