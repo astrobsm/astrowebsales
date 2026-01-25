@@ -7,6 +7,9 @@ import syncService from './services/syncService';
 // Auto Sync Component
 import { AutoSyncProvider } from './components/shared/AutoSyncManager';
 
+// Pending Order Alert Manager
+import PendingOrderAlertManager from './components/shared/PendingOrderAlertManager';
+
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -136,6 +139,9 @@ function App() {
       <AutoSyncProvider>
         {/* PWA Install Prompt */}
         <InstallPrompt />
+        
+        {/* Pending Order Voice Alerts (every 15 minutes) */}
+        <PendingOrderAlertManager />
         
         <Routes>
           {/* Public Routes */}
