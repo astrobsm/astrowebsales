@@ -1601,101 +1601,118 @@ app.get('/api/sync/full', async (req, res) => {
 app.post('/api/sync/full', async (req, res) => {
   try {
     const { staff, partners, distributors, feedback, settings, content } = req.body;
+    const errors = [];
 
     // Sync staff
     if (staff && staff.length > 0) {
       for (const s of staff) {
-        await pool.query(`
-          INSERT INTO staff (id, username, password, name, email, phone, role, status, must_change_password, permissions, last_login, activity_log)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-          ON CONFLICT (id) DO UPDATE SET
-            username = EXCLUDED.username,
-            password = EXCLUDED.password,
-            name = EXCLUDED.name,
-            email = EXCLUDED.email,
-            phone = EXCLUDED.phone,
-            role = EXCLUDED.role,
-            status = EXCLUDED.status,
-            must_change_password = EXCLUDED.must_change_password,
-            permissions = EXCLUDED.permissions,
-            last_login = EXCLUDED.last_login,
-            activity_log = EXCLUDED.activity_log,
-            updated_at = CURRENT_TIMESTAMP
-        `, [s.id, s.username, s.password, s.name, s.email, s.phone, s.role, s.status, s.mustChangePassword, JSON.stringify(s.permissions || []), s.lastLogin, JSON.stringify(s.activityLog || [])]);
+        try {
+          await pool.query(`
+            INSERT INTO staff (id, username, password, name, email, phone, role, status, must_change_password, permissions, last_login, activity_log)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (id) DO UPDATE SET
+              username = EXCLUDED.username,
+              password = EXCLUDED.password,
+              name = EXCLUDED.name,
+              email = EXCLUDED.email,
+              phone = EXCLUDED.phone,
+              role = EXCLUDED.role,
+              status = EXCLUDED.status,
+              must_change_password = EXCLUDED.must_change_password,
+              permissions = EXCLUDED.permissions,
+              last_login = EXCLUDED.last_login,
+              activity_log = EXCLUDED.activity_log,
+              updated_at = CURRENT_TIMESTAMP
+          `, [s.id, s.username, s.password, s.name, s.email, s.phone, s.role, s.status || 'active', s.mustChangePassword !== false, JSON.stringify(s.permissions || []), s.lastLogin || null, JSON.stringify(s.activityLog || [])]);
+        } catch (err) {
+          console.error('Staff sync error:', err.message);
+          errors.push(`Staff ${s.id}: ${err.message}`);
+        }
       }
     }
 
-    // Sync partners
+    // Sync partners - using simpler columns that definitely exist
     if (partners && partners.length > 0) {
       for (const p of partners) {
-        await pool.query(`
-          INSERT INTO partners (id, username, password, company_name, contact_name, email, phone, address, state, city, type, status, must_change_password, territory, bank_name, account_number, account_name, last_login)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-          ON CONFLICT (id) DO UPDATE SET
-            username = EXCLUDED.username,
-            password = EXCLUDED.password,
-            company_name = EXCLUDED.company_name,
-            contact_name = EXCLUDED.contact_name,
-            email = EXCLUDED.email,
-            phone = EXCLUDED.phone,
-            address = EXCLUDED.address,
-            state = EXCLUDED.state,
-            city = EXCLUDED.city,
-            type = EXCLUDED.type,
-            status = EXCLUDED.status,
-            must_change_password = EXCLUDED.must_change_password,
-            territory = EXCLUDED.territory,
-            bank_name = EXCLUDED.bank_name,
-            account_number = EXCLUDED.account_number,
-            account_name = EXCLUDED.account_name,
-            last_login = EXCLUDED.last_login,
-            updated_at = CURRENT_TIMESTAMP
-        `, [p.id, p.username, p.password, p.companyName, p.contactName, p.email, p.phone, p.address, p.state, p.city, p.type, p.status, p.mustChangePassword, JSON.stringify(p.territory || []), p.bankName, p.accountNumber, p.accountName, p.lastLogin]);
+        try {
+          // Use simpler insert with only columns that exist in the partners table
+          await pool.query(`
+            INSERT INTO partners (id, username, password, company_name, contact_name, email, phone, address, state, city, type, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (id) DO UPDATE SET
+              username = EXCLUDED.username,
+              password = EXCLUDED.password,
+              company_name = EXCLUDED.company_name,
+              contact_name = EXCLUDED.contact_name,
+              email = EXCLUDED.email,
+              phone = EXCLUDED.phone,
+              address = EXCLUDED.address,
+              state = EXCLUDED.state,
+              city = EXCLUDED.city,
+              type = EXCLUDED.type,
+              status = EXCLUDED.status,
+              updated_at = CURRENT_TIMESTAMP
+          `, [p.id, p.username, p.password, p.companyName, p.contactName, p.email, p.phone, p.address, p.state, p.city, p.type, p.status || 'active']);
+          console.log('✅ Synced partner:', p.id);
+        } catch (err) {
+          console.error('Partner sync error:', err.message);
+          errors.push(`Partner ${p.id}: ${err.message}`);
+        }
       }
     }
 
     // Sync distributors
     if (distributors && distributors.length > 0) {
       for (const d of distributors) {
-        await pool.query(`
-          INSERT INTO distributors (id, name, state, zone, phone, email, bank_name, account_number, account_name, is_active, is_primary)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          ON CONFLICT (id) DO UPDATE SET
-            name = EXCLUDED.name,
-            state = EXCLUDED.state,
-            zone = EXCLUDED.zone,
-            phone = EXCLUDED.phone,
-            email = EXCLUDED.email,
-            bank_name = EXCLUDED.bank_name,
-            account_number = EXCLUDED.account_number,
-            account_name = EXCLUDED.account_name,
-            is_active = EXCLUDED.is_active,
-            is_primary = EXCLUDED.is_primary,
-            updated_at = CURRENT_TIMESTAMP
-        `, [d.id, d.name, d.state, d.zone, d.phone, d.email, d.bankName, d.accountNumber, d.accountName, d.isActive !== false, d.isPrimary || false]);
+        try {
+          await pool.query(`
+            INSERT INTO distributors (id, name, state, zone, phone, email, bank_name, account_number, account_name, is_active, is_primary)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              state = EXCLUDED.state,
+              zone = EXCLUDED.zone,
+              phone = EXCLUDED.phone,
+              email = EXCLUDED.email,
+              bank_name = EXCLUDED.bank_name,
+              account_number = EXCLUDED.account_number,
+              account_name = EXCLUDED.account_name,
+              is_active = EXCLUDED.is_active,
+              is_primary = EXCLUDED.is_primary,
+              updated_at = CURRENT_TIMESTAMP
+          `, [d.id, d.name, d.state, d.zone, d.phone, d.email, d.bankName, d.accountNumber, d.accountName, d.isActive !== false, d.isPrimary || false]);
+        } catch (err) {
+          console.error('Distributor sync error:', err.message);
+          errors.push(`Distributor ${d.id}: ${err.message}`);
+        }
       }
     }
 
     // Sync feedback
     if (feedback && feedback.length > 0) {
       for (const f of feedback) {
-        await pool.query(`
-          INSERT INTO feedback (id, name, email, phone, subject, message, rating, type, status, priority, assigned_to, responses, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-          ON CONFLICT (id) DO UPDATE SET
-            name = EXCLUDED.name,
-            email = EXCLUDED.email,
-            phone = EXCLUDED.phone,
-            subject = EXCLUDED.subject,
-            message = EXCLUDED.message,
-            rating = EXCLUDED.rating,
-            type = EXCLUDED.type,
-            status = EXCLUDED.status,
-            priority = EXCLUDED.priority,
-            assigned_to = EXCLUDED.assigned_to,
-            responses = EXCLUDED.responses,
-            updated_at = CURRENT_TIMESTAMP
-        `, [f.id, f.name, f.email, f.phone, f.subject, f.message, f.rating, f.type, f.status, f.priority, f.assignedTo, JSON.stringify(f.responses || []), f.createdAt]);
+        try {
+          await pool.query(`
+            INSERT INTO feedback (id, name, email, phone, subject, message, rating, type, status, priority, assigned_to, responses)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              email = EXCLUDED.email,
+              phone = EXCLUDED.phone,
+              subject = EXCLUDED.subject,
+              message = EXCLUDED.message,
+              rating = EXCLUDED.rating,
+              type = EXCLUDED.type,
+              status = EXCLUDED.status,
+              priority = EXCLUDED.priority,
+              assigned_to = EXCLUDED.assigned_to,
+              responses = EXCLUDED.responses,
+              updated_at = CURRENT_TIMESTAMP
+          `, [f.id, f.name, f.email, f.phone, f.subject, f.message, f.rating || 0, f.type || 'general', f.status || 'new', f.priority || 'normal', f.assignedTo || null, JSON.stringify(f.responses || [])]);
+        } catch (err) {
+          console.error('Feedback sync error:', err.message);
+          errors.push(`Feedback ${f.id}: ${err.message}`);
+        }
       }
     }
 
