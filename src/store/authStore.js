@@ -71,7 +71,7 @@ export const useAuthStore = create(
             return { success: true, user: adminAccount };
           }
           
-          // Check staff credentials from staffStore
+          // Check staff credentials from local staffStore first
           const staffMember = staffStore.getStaffByEmail(email);
           if (staffMember && staffMember.password === password && staffMember.status === 'active') {
             const user = {
@@ -95,6 +95,32 @@ export const useAuthStore = create(
             
             useSyncStore.getState().notifyStateChange('auth', { action: 'login', user });
             return { success: true, user };
+          }
+          
+          // Try server-side staff login as fallback
+          try {
+            const staffResponse = await fetch('/api/staff/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            
+            const staffData = await staffResponse.json();
+            
+            if (staffData.success && staffData.user) {
+              const sessionId = `${(staffData.user.role || 'STAFF').toUpperCase()}-${Date.now()}`;
+              set({
+                user: staffData.user,
+                isAuthenticated: true,
+                sessionId,
+                role: staffData.user.role
+              });
+              
+              useSyncStore.getState().notifyStateChange('auth', { action: 'login', user: staffData.user });
+              return { success: true, user: staffData.user };
+            }
+          } catch (staffApiError) {
+            console.error('Staff API login error:', staffApiError);
           }
           
           // Check distributor credentials from distributorStore

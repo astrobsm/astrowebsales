@@ -1965,6 +1965,53 @@ app.post('/api/staff', async (req, res) => {
   }
 });
 
+// Staff login endpoint
+app.post('/api/staff/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+    
+    const result = await pool.query(
+      'SELECT * FROM staff WHERE email = $1 AND status = $2',
+      [email, 'active']
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+    
+    const staff = result.rows[0];
+    
+    if (staff.password !== password) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+    
+    // Update last login
+    await pool.query('UPDATE staff SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [staff.id]);
+    
+    // Return user data
+    res.json({
+      success: true,
+      user: {
+        id: staff.id,
+        name: staff.name,
+        username: staff.username,
+        role: staff.role,
+        email: staff.email,
+        phone: staff.phone,
+        permissions: staff.permissions || [],
+        mustChangePassword: staff.must_change_password
+      }
+    });
+  } catch (error) {
+    console.error('Staff login error:', error);
+    res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
 // ==================== DISTRIBUTORS API ====================
 
 app.get('/api/distributors', async (req, res) => {
