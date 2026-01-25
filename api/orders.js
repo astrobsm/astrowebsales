@@ -115,6 +115,27 @@ export default async function handler(req, res) {
       return res.status(201).json(result.rows[0]);
     }
 
+    if (req.method === 'DELETE') {
+      // Delete order - requires order ID in query params
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const orderId = url.searchParams.get('id');
+      
+      if (!orderId) {
+        return res.status(400).json({ error: 'Order ID is required' });
+      }
+      
+      const result = await pool.query(
+        'DELETE FROM orders WHERE id = $1 RETURNING *',
+        [orderId]
+      );
+      
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      return res.status(200).json({ success: true, message: 'Order deleted successfully', deletedOrder: result.rows[0] });
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Orders API Error:', error);

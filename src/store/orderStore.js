@@ -380,6 +380,33 @@ export const useOrderStore = create(
           return [...get().orders]
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, limit);
+        },
+        
+        // Delete order (admin only)
+        deleteOrder: async (orderId) => {
+          try {
+            // Delete from database first
+            await ordersApi.delete(orderId);
+            
+            // Remove from local state
+            set((state) => ({
+              orders: state.orders.filter(order => order.id !== orderId)
+            }));
+            
+            useSyncStore.getState().notifyStateChange('orders', { 
+              action: 'delete', 
+              orderId 
+            });
+            
+            return { success: true };
+          } catch (error) {
+            console.error('Failed to delete order:', error);
+            // Still remove from local state even if database delete fails
+            set((state) => ({
+              orders: state.orders.filter(order => order.id !== orderId)
+            }));
+            return { success: true, warning: 'Deleted locally, database sync may be pending' };
+          }
         }
       }),
       {

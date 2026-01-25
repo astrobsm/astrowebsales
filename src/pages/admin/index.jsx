@@ -1209,12 +1209,35 @@ export const AdminProducts = () => {
 
 // AdminOrders
 export const AdminOrders = () => {
-  const { orders, updateOrderStatus, fetchOrders } = useOrderStore();
+  const { orders, updateOrderStatus, fetchOrders, deleteOrder } = useOrderStore();
   const { distributors, getDistributorForState } = useDistributorStore();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Handle delete order
+  const handleDeleteOrder = async (order) => {
+    setOrderToDelete(order);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!orderToDelete) return;
+    
+    const result = await deleteOrder(orderToDelete.id);
+    if (result.success) {
+      toast.success(`Order ${orderToDelete.orderNumber} deleted successfully`);
+      setShowDeleteConfirm(false);
+      setOrderToDelete(null);
+      setShowDetailsModal(false);
+      setSelectedOrder(null);
+    } else {
+      toast.error('Failed to delete order');
+    }
+  };
 
   // Default Bonnesante Medicals bank details (fallback when no distributor)
   const DEFAULT_BANK_DETAILS = {
@@ -1727,6 +1750,13 @@ _+234 902 872 4839_
                       >
                         <Phone size={18} />
                       </button>
+                      <button
+                        onClick={() => handleDeleteOrder(order)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                        title="Delete Order"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1876,7 +1906,59 @@ _+234 902 872 4839_
                   <Phone size={18} />
                   Share via WhatsApp
                 </button>
+                <button
+                  onClick={() => handleDeleteOrder(selectedOrder)}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                >
+                  <Trash2 size={18} />
+                  Delete
+                </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && orderToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="text-red-600" size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete Order</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to delete order <span className="font-bold text-primary-600">{orderToDelete.orderNumber}</span>?
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Customer: {orderToDelete.customerName} • Amount: ₦{orderToDelete.totalAmount?.toLocaleString()}
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setOrderToDelete(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteOrder}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                <Trash2 size={18} />
+                Delete Order
+              </button>
             </div>
           </div>
         </div>

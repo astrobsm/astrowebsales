@@ -126,6 +126,11 @@ export const ordersApi = {
     method: 'PUT',
     body: JSON.stringify({ status }),
   }),
+  
+  // Delete order (admin only)
+  delete: (id) => apiRequest(`/orders?id=${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 // ==================== ARTICLES API ====================
