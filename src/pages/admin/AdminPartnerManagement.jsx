@@ -13,6 +13,8 @@ const AdminPartnerManagement = () => {
   } = useStaffStore();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPartner, setEditingPartner] = useState(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [bulkResults, setBulkResults] = useState([]);
@@ -92,6 +94,45 @@ const AdminPartnerManagement = () => {
         accountNumber: '',
         accountName: ''
       });
+    }
+  };
+
+  // Handle edit partner
+  const handleOpenEdit = (partner) => {
+    setEditingPartner({
+      ...partner,
+      territory: Array.isArray(partner.territory) ? partner.territory.join(', ') : partner.territory || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditPartner = async (e) => {
+    e.preventDefault();
+    if (!editingPartner) return;
+    
+    const result = await updatePartner(editingPartner.id, {
+      companyName: editingPartner.companyName,
+      contactName: editingPartner.contactName,
+      email: editingPartner.email,
+      phone: editingPartner.phone,
+      address: editingPartner.address,
+      state: editingPartner.state,
+      city: editingPartner.city,
+      type: editingPartner.type,
+      territory: typeof editingPartner.territory === 'string' 
+        ? editingPartner.territory.split(',').map(t => t.trim()).filter(t => t)
+        : editingPartner.territory,
+      bankName: editingPartner.bankName,
+      accountNumber: editingPartner.accountNumber,
+      accountName: editingPartner.accountName
+    });
+    
+    if (result !== false) {
+      setShowEditModal(false);
+      setEditingPartner(null);
+      alert('Partner updated successfully!');
+    } else {
+      alert('Failed to update partner');
     }
   };
 
@@ -394,6 +435,15 @@ const AdminPartnerManagement = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex gap-2">
                       <button
+                        onClick={() => handleOpenEdit(partner)}
+                        className="text-green-600 hover:text-green-800"
+                        title="Edit Partner"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
                         onClick={() => handleResetPassword(partner.id, partner.companyName)}
                         className="text-blue-600 hover:text-blue-800"
                         title="Reset Password"
@@ -593,6 +643,177 @@ const AdminPartnerManagement = () => {
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 >
                   Add Partner
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Partner Modal */}
+      {showEditModal && editingPartner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Edit Partner</h2>
+              <button onClick={() => { setShowEditModal(false); setEditingPartner(null); }} className="text-gray-500 hover:text-gray-700">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleEditPartner} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Partner Type *</label>
+                  <select
+                    value={editingPartner.type}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, type: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="distributor">Distributor</option>
+                    <option value="wholesaler">Wholesaler</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingPartner.companyName || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, companyName: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Enter company name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingPartner.contactName || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, contactName: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Contact person name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={editingPartner.email || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, email: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Email address"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editingPartner.phone || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, phone: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Phone number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+                  <select
+                    required
+                    value={editingPartner.state || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, state: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select State</option>
+                    {nigerianStates.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingPartner.city || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, city: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="City"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <textarea
+                    value={editingPartner.address || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, address: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Full address"
+                    rows={2}
+                  />
+                </div>
+                {editingPartner.type === 'distributor' && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Territory (comma-separated states)</label>
+                    <input
+                      type="text"
+                      value={editingPartner.territory || ''}
+                      onChange={(e) => setEditingPartner({ ...editingPartner, territory: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      placeholder="e.g., Enugu, Anambra, Ebonyi"
+                    />
+                  </div>
+                )}
+                <div className="md:col-span-2 border-t pt-4 mt-2">
+                  <h3 className="font-medium text-gray-900 mb-2">Bank Details (For Payment Processing)</h3>
+                  <p className="text-sm text-orange-600 mb-3">⚠️ Important: Add bank details for customers to pay directly to this distributor</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                  <input
+                    type="text"
+                    value={editingPartner.bankName || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, bankName: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="e.g., Access Bank, UBA, GTBank"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                  <input
+                    type="text"
+                    value={editingPartner.accountNumber || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, accountNumber: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="10-digit account number"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                  <input
+                    type="text"
+                    value={editingPartner.accountName || ''}
+                    onChange={(e) => setEditingPartner({ ...editingPartner, accountName: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Account holder name"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditModal(false); setEditingPartner(null); }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
