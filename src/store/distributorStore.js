@@ -99,14 +99,14 @@ export const DISTRIBUTORS = [
   },
   {
     id: 'dist-enugu-1',
-    name: 'Enugu WoundCare Centre',
+    name: 'Bonnesante Medicals Enugu',
     state: 'Enugu',
     zone: 'South East',
     phone: '+234-805-678-9012',
     email: 'enugu@bonnesante-dist.com',
     bankName: 'UBA',
     accountNumber: '6677889900',
-    accountName: 'Enugu WoundCare Centre',
+    accountName: 'Bonnesante Medicals Enugu',
     isActive: true,
     isPrimary: true
   }
