@@ -1,7 +1,8 @@
 // Database Schema Fix Script
 // Run with: node scripts/fix-database-schema.js
 
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
 
 // Use DATABASE_URL environment variable
 const pool = new Pool({
