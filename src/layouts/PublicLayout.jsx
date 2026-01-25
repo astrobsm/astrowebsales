@@ -18,6 +18,7 @@ const PublicLayout = () => {
     { path: '/products', label: 'Products' },
     { path: '/education', label: 'Health Education' },
     { path: '/seminars', label: 'Seminars' },
+    { path: '/user-guides', label: 'User Guides' },
     { path: '/contact', label: 'Contact' }
   ];
 

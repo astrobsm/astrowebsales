@@ -25,6 +25,7 @@ import Education from './pages/public/Education';
 import Seminars from './pages/public/Seminars';
 import Contact from './pages/public/Contact';
 import SeminarRegistration from './pages/public/SeminarRegistration';
+import UserGuides from './pages/public/UserGuides';
 
 // Auth Pages
 import RetailAccess from './pages/auth/RetailAccess';
@@ -154,6 +155,7 @@ function App() {
             <Route path="/seminars/register/:id" element={<SeminarRegistration />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/become-distributor" element={<BecomeDistributor />} />
+            <Route path="/user-guides" element={<UserGuides />} />
           </Route>
 
           {/* Auth Routes */}

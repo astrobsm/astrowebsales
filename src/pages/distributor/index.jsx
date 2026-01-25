@@ -8,7 +8,7 @@ import {
   Package, ShoppingCart, CheckCircle, Clock, AlertTriangle, 
   Plus, Minus, RefreshCw, Search, Filter, TrendingDown, 
   TrendingUp, History, Edit2, Trash2, Save, X, ArrowUpDown,
-  Box, DollarSign, AlertCircle
+  Box, DollarSign, AlertCircle, CreditCard, MessageCircle
 } from 'lucide-react';
 
 export const DistributorDashboard = () => {
@@ -1149,6 +1149,49 @@ export const DistributorProducts = () => {
                 <p className="font-medium text-blue-900">Ordering as: {user?.name || user?.businessName}</p>
                 <p className="text-blue-800">{user?.email}</p>
                 {user?.phone && <p className="text-blue-800">{user?.phone}</p>}
+              </div>
+
+              {/* Payment Details */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-yellow-900 mb-2">Payment Details</h4>
+                    <p className="text-sm text-yellow-800 font-medium mb-2">Account Name: Bonnesante Medicals</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="bg-white rounded p-2">
+                        <p className="text-yellow-800">Bank: <span className="font-medium">Access Bank</span></p>
+                        <p className="text-yellow-900 font-bold">Account: 1379643548</p>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <p className="text-yellow-800">Bank: <span className="font-medium">Moniepoint</span></p>
+                        <p className="text-yellow-900 font-bold">Account: 8259518195</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* WhatsApp Payment Proof */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <MessageCircle className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <h4 className="font-semibold text-green-900 mb-1">Send Payment Proof</h4>
+                    <p className="text-sm text-green-800 mb-2">
+                      After making payment, send your receipt to WhatsApp: <span className="font-bold">0707 679 3866</span>
+                    </p>
+                    <a 
+                      href={`https://wa.me/2347076793866?text=Hi, I am ${user?.name || user?.businessName}. I just made payment for my order. Amount: ₦${cartTotal.toLocaleString()}. Here is my payment proof.`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                    >
+                      <MessageCircle size={14} />
+                      Open WhatsApp
+                    </a>
+                  </div>
+                </div>
               </div>
 
               {/* Place Order Button */}
