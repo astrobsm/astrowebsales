@@ -134,16 +134,14 @@ const AdminDashboard = () => {
 // AdminUsers
 export const AdminUsers = () => {
   const { 
-    distributors = [], 
-    addDistributor, 
-    updateDistributor, 
-    deleteDistributor 
-  } = useDistributorStore();
-  const { 
-    staffMembers = [], 
+    staff = [], 
+    partners = [],
     addStaff, 
     updateStaff, 
-    deleteStaff 
+    deleteStaff,
+    addPartner,
+    updatePartner,
+    deletePartner
   } = useStaffStore();
   
   const [activeTab, setActiveTab] = useState('distributors');
@@ -157,11 +155,11 @@ export const AdminUsers = () => {
   const getUserList = () => {
     let list = [];
     if (activeTab === 'distributors') {
-      list = (distributors || []).filter(d => d.type === 'distributor');
+      list = (partners || []).filter(d => d.type === 'distributor');
     } else if (activeTab === 'wholesalers') {
-      list = (distributors || []).filter(d => d.type === 'wholesaler');
+      list = (partners || []).filter(d => d.type === 'wholesaler');
     } else if (activeTab === 'staff') {
-      list = staffMembers || [];
+      list = staff || [];
     }
     
     // Apply search
@@ -201,10 +199,10 @@ export const AdminUsers = () => {
       }
     } else {
       if (selectedUser) {
-        updateDistributor(selectedUser.id, formData);
+        updatePartner(selectedUser.id, formData);
         toast.success('Partner updated');
       } else {
-        addDistributor({
+        addPartner({
           ...formData,
           id: `${activeTab === 'distributors' ? 'DST' : 'WHL'}${Date.now()}`,
           type: activeTab === 'distributors' ? 'distributor' : 'wholesaler',
@@ -224,7 +222,7 @@ export const AdminUsers = () => {
       deleteStaff(user.id);
       toast.success('Staff member deleted');
     } else {
-      deleteDistributor(user.id);
+      deletePartner(user.id);
       toast.success('Partner deleted');
     }
   };
@@ -237,9 +235,9 @@ export const AdminUsers = () => {
   const userList = getUserList();
 
   const tabs = [
-    { id: 'distributors', label: 'Distributors', count: (distributors || []).filter(d => d.type === 'distributor').length },
-    { id: 'wholesalers', label: 'Wholesalers', count: (distributors || []).filter(d => d.type === 'wholesaler').length },
-    { id: 'staff', label: 'Staff', count: (staffMembers || []).length }
+    { id: 'distributors', label: 'Distributors', count: (partners || []).filter(d => d.type === 'distributor').length },
+    { id: 'wholesalers', label: 'Wholesalers', count: (partners || []).filter(d => d.type === 'wholesaler').length },
+    { id: 'staff', label: 'Staff', count: (staff || []).length }
   ];
 
   const staffRoles = ['marketer', 'sales', 'cco', 'manager', 'admin'];
