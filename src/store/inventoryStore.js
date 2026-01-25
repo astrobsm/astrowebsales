@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Use relative URLs in production (served from same server), full URL in development
+const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD === true;
+const API_BASE = isProduction ? '' : 'http://localhost:5000';
 
 export const useInventoryStore = create(
   persist(

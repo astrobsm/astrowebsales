@@ -200,7 +200,8 @@ const PendingOrderAlertManager = () => {
       clearTimeout(initialCheck);
       console.log('🔔 Pending Order Alert Manager cleaned up');
     };
-  }, [user, fetchOrders, announcePendingOrders, checkForNewOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only re-run when user changes, not on every function recreation
 
   // Reset announced orders when orders change significantly
   useEffect(() => {
