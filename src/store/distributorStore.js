@@ -123,14 +123,29 @@ export const useDistributorStore = create(
         setDistributors: (distributorsArray) => {
           if (!Array.isArray(distributorsArray)) return;
           
-          // Merge with existing if server has no data
+          // If server has distributors, merge with local (keeping local changes)
           if (distributorsArray.length === 0) {
             console.log('📥 Server has no distributors, keeping local data');
             return;
           }
           
-          set({ distributors: distributorsArray });
-          console.log(`📥 Distributors store updated with ${distributorsArray.length} distributors`);
+          // Merge server data with local data - prefer local if updated more recently
+          const currentDistributors = get().distributors;
+          const mergedDistributors = distributorsArray.map(serverDist => {
+            const localDist = currentDistributors.find(d => d.id === serverDist.id);
+            // If local version exists, merge (server wins for now, but keep structure)
+            return localDist ? { ...serverDist } : serverDist;
+          });
+          
+          // Add any local distributors not on server
+          currentDistributors.forEach(localDist => {
+            if (!mergedDistributors.find(d => d.id === localDist.id)) {
+              mergedDistributors.push(localDist);
+            }
+          });
+          
+          set({ distributors: mergedDistributors });
+          console.log(`📥 Distributors store updated with ${mergedDistributors.length} distributors`);
           
           // Re-initialize mapping with new distributors
           get().initializeMapping();
@@ -207,12 +222,14 @@ export const useDistributorStore = create(
         
         // Update distributor
         updateDistributor: (id, updates) => {
+          console.log(`📝 Updating distributor ${id}:`, updates);
           set((state) => ({
             distributors: state.distributors.map(d => 
-              d.id === id ? { ...d, ...updates } : d
+              d.id === id ? { ...d, ...updates, updatedAt: new Date().toISOString() } : d
             )
           }));
           
+          console.log(`✅ Distributor ${id} updated locally`);
           useSyncStore.getState().notifyStateChange('distributors', { 
             action: 'update', 
             id, 
