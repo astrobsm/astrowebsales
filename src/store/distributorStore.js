@@ -221,7 +221,7 @@ export const useDistributorStore = create(
         },
         
         // Update distributor
-        updateDistributor: (id, updates) => {
+        updateDistributor: async (id, updates) => {
           console.log(`📝 Updating distributor ${id}:`, updates);
           set((state) => ({
             distributors: state.distributors.map(d => 
@@ -230,6 +230,26 @@ export const useDistributorStore = create(
           }));
           
           console.log(`✅ Distributor ${id} updated locally`);
+          
+          // Immediately sync to server
+          try {
+            const updatedDistributor = get().distributors.find(d => d.id === id);
+            if (updatedDistributor) {
+              const response = await fetch('/api/distributors/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedDistributor)
+              });
+              if (response.ok) {
+                console.log(`✅ Distributor ${id} synced to server`);
+              } else {
+                console.error(`❌ Failed to sync distributor ${id} to server`);
+              }
+            }
+          } catch (error) {
+            console.error(`❌ Error syncing distributor ${id}:`, error);
+          }
+          
           useSyncStore.getState().notifyStateChange('distributors', { 
             action: 'update', 
             id, 

@@ -1956,6 +1956,44 @@ app.post('/api/distributors', async (req, res) => {
   }
 });
 
+// Update distributor
+app.put('/api/distributors/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const d = req.body;
+    console.log(`📝 Updating distributor ${id}:`, d);
+    
+    const result = await pool.query(`
+      UPDATE distributors SET
+        name = $2, state = $3, zone = $4, phone = $5, email = $6,
+        bank_name = $7, account_number = $8, account_name = $9,
+        is_active = $10, is_primary = $11, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `, [id, d.name, d.state, d.zone, d.phone, d.email, d.bankName, d.accountNumber, d.accountName, d.isActive !== false, d.isPrimary || false]);
+    
+    if (result.rows.length === 0) {
+      // If not found, insert it
+      const insertResult = await pool.query(`
+        INSERT INTO distributors (id, name, state, zone, phone, email, bank_name, account_number, account_name, is_active, is_primary)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING *
+      `, [id, d.name, d.state, d.zone, d.phone, d.email, d.bankName, d.accountNumber, d.accountName, d.isActive !== false, d.isPrimary || false]);
+      
+      io.emit('state-update', { store: 'distributors', action: 'add', payload: insertResult.rows[0], timestamp: Date.now() });
+      console.log(`✅ Distributor ${id} inserted (not found for update)`);
+      return res.json(insertResult.rows[0]);
+    }
+    
+    io.emit('state-update', { store: 'distributors', action: 'update', payload: result.rows[0], timestamp: Date.now() });
+    console.log(`✅ Distributor ${id} updated successfully`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update distributor error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== FEEDBACK API ====================
 
 app.get('/api/feedback', async (req, res) => {
