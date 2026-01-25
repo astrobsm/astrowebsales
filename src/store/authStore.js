@@ -97,7 +97,7 @@ export const useAuthStore = create(
             return { success: true, user };
           }
           
-          // Check distributor credentials
+          // Check distributor credentials from distributorStore
           const { useDistributorStore } = await import('./distributorStore');
           const distributorStore = useDistributorStore.getState();
           const distributor = distributorStore.distributors?.find(d => d.email === email);
@@ -118,6 +118,35 @@ export const useAuthStore = create(
               isAuthenticated: true,
               sessionId,
               role: 'distributor'
+            });
+            
+            useSyncStore.getState().notifyStateChange('auth', { action: 'login', user });
+            return { success: true, user };
+          }
+          
+          // Check partner credentials from staffStore (partners table)
+          const partner = staffStore.partners?.find(p => p.email === email);
+          if (partner && partner.password === password && partner.active !== false && partner.status === 'active') {
+            const user = {
+              id: partner.id,
+              name: partner.contactName || partner.contact_name || partner.companyName || partner.company_name,
+              role: partner.type || 'distributor',
+              email: partner.email,
+              phone: partner.phone,
+              state: partner.state,
+              territory: partner.territory,
+              companyName: partner.companyName || partner.company_name,
+              bankName: partner.bankName || partner.bank_name,
+              accountNumber: partner.accountNumber || partner.account_number,
+              accountName: partner.accountName || partner.account_name
+            };
+            
+            const sessionId = `${(partner.type || 'PARTNER').toUpperCase()}-${Date.now()}`;
+            set({
+              user,
+              isAuthenticated: true,
+              sessionId,
+              role: partner.type || 'distributor'
             });
             
             useSyncStore.getState().notifyStateChange('auth', { action: 'login', user });
