@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Search, Filter, ChevronDown, Plus, Minus, Check, X, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 const RetailProducts = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const { products, categories, getActiveProducts, getProductsByCategory, searchProducts } = useProductStore();
+  const { products, categories, getActiveProducts, getProductsByCategory, searchProducts, fetchProducts } = useProductStore();
   const { addItem, updateItemQuantity, isInCart, getCartItem } = useCartStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,14 +17,30 @@ const RetailProducts = () => {
   const [sortBy, setSortBy] = useState('name');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Redirect if not authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isAuthenticated) {
       toast.error('Please enter your details to start shopping');
       navigate('/retail-access');
     }
   }, [isAuthenticated, navigate]);
+
+  // Fetch products on mount
+  useEffect(() => {
+    const loadProducts = async () => {
+      setIsLoading(true);
+      try {
+        await fetchProducts();
+      } catch (error) {
+        console.error('Failed to load products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadProducts();
+  }, [fetchProducts]);
 
   const getFilteredProducts = () => {
     let filtered = [];
@@ -261,20 +277,42 @@ const RetailProducts = () => {
           })}
         </div>
 
-        {filteredProducts.length === 0 && (
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-16">
+            <div className="animate-spin text-6xl mb-4">⏳</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading products...</h3>
+            <p className="text-gray-600">Please wait while we fetch the latest products</p>
+          </div>
+        )}
+
+        {/* No Products Found */}
+        {!isLoading && filteredProducts.length === 0 && (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
             <p className="text-gray-600 mb-6">Try adjusting your search or filter</p>
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('all');
-              }}
-              className="btn-primary"
-            >
-              Clear Filters
-            </button>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('all');
+                }}
+                className="btn-secondary"
+              >
+                Clear Filters
+              </button>
+              <button
+                onClick={async () => {
+                  setIsLoading(true);
+                  await fetchProducts();
+                  setIsLoading(false);
+                }}
+                className="btn-primary"
+              >
+                Reload Products
+              </button>
+            </div>
           </div>
         )}
       </div>
