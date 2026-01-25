@@ -775,6 +775,378 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// ==================== DISTRIBUTOR INVENTORY API ====================
+
+// Get inventory for a distributor
+app.get('/api/distributor-inventory/:distributorId', async (req, res) => {
+  try {
+    const { distributorId } = req.params;
+    
+    const result = await pool.query(`
+      SELECT 
+        di.*,
+        p.name as product_name,
+        p.sku as product_sku,
+        p.category as product_category,
+        p.price_distributor,
+        p.price_retail,
+        p.image_url as product_image
+      FROM distributor_inventory di
+      LEFT JOIN products p ON di.product_id = p.id
+      WHERE di.distributor_id = $1
+      ORDER BY p.name ASC
+    `, [distributorId]);
+    
+    const inventory = result.rows.map(row => ({
+      id: row.id,
+      distributorId: row.distributor_id,
+      productId: row.product_id,
+      productName: row.product_name || 'Unknown Product',
+      productSku: row.product_sku || '',
+      productCategory: row.product_category || '',
+      productImage: row.product_image || '',
+      quantity: parseInt(row.quantity) || 0,
+      reorderLevel: parseInt(row.reorder_level) || 10,
+      costPrice: parseFloat(row.cost_price) || parseFloat(row.price_distributor) || 0,
+      retailPrice: parseFloat(row.price_retail) || 0,
+      lastRestocked: row.last_restocked,
+      notes: row.notes || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      isLowStock: parseInt(row.quantity) <= parseInt(row.reorder_level)
+    }));
+    
+    res.json(inventory);
+  } catch (error) {
+    console.error('Get distributor inventory error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get inventory transactions for a distributor
+app.get('/api/distributor-inventory/:distributorId/transactions', async (req, res) => {
+  try {
+    const { distributorId } = req.params;
+    const { limit = 50 } = req.query;
+    
+    const result = await pool.query(`
+      SELECT 
+        it.*,
+        p.name as product_name,
+        p.sku as product_sku
+      FROM inventory_transactions it
+      LEFT JOIN products p ON it.product_id = p.id
+      WHERE it.distributor_id = $1
+      ORDER BY it.created_at DESC
+      LIMIT $2
+    `, [distributorId, parseInt(limit)]);
+    
+    const transactions = result.rows.map(row => ({
+      id: row.id,
+      distributorId: row.distributor_id,
+      productId: row.product_id,
+      productName: row.product_name || 'Unknown Product',
+      productSku: row.product_sku || '',
+      transactionType: row.transaction_type,
+      quantity: parseInt(row.quantity),
+      previousQuantity: parseInt(row.previous_quantity) || 0,
+      newQuantity: parseInt(row.new_quantity) || 0,
+      referenceId: row.reference_id,
+      notes: row.notes,
+      createdBy: row.created_by,
+      createdAt: row.created_at
+    }));
+    
+    res.json(transactions);
+  } catch (error) {
+    console.error('Get inventory transactions error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add or update inventory item
+app.post('/api/distributor-inventory', async (req, res) => {
+  try {
+    const { 
+      distributorId, 
+      productId, 
+      quantity, 
+      reorderLevel = 10,
+      costPrice,
+      notes,
+      createdBy 
+    } = req.body;
+    
+    if (!distributorId || !productId) {
+      return res.status(400).json({ error: 'Distributor ID and Product ID are required' });
+    }
+    
+    // Check if inventory item already exists
+    const existing = await pool.query(
+      'SELECT * FROM distributor_inventory WHERE distributor_id = $1 AND product_id = $2',
+      [distributorId, productId]
+    );
+    
+    let result;
+    let previousQuantity = 0;
+    
+    if (existing.rows.length > 0) {
+      // Update existing
+      previousQuantity = existing.rows[0].quantity;
+      result = await pool.query(`
+        UPDATE distributor_inventory 
+        SET quantity = $1, reorder_level = $2, cost_price = $3, notes = $4, 
+            last_restocked = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE distributor_id = $5 AND product_id = $6
+        RETURNING *
+      `, [quantity, reorderLevel, costPrice, notes, distributorId, productId]);
+    } else {
+      // Insert new
+      result = await pool.query(`
+        INSERT INTO distributor_inventory 
+        (distributor_id, product_id, quantity, reorder_level, cost_price, notes, last_restocked)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+        RETURNING *
+      `, [distributorId, productId, quantity, reorderLevel, costPrice, notes]);
+    }
+    
+    // Record transaction
+    await pool.query(`
+      INSERT INTO inventory_transactions 
+      (distributor_id, product_id, transaction_type, quantity, previous_quantity, new_quantity, notes, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [
+      distributorId, 
+      productId, 
+      existing.rows.length > 0 ? 'restock' : 'initial', 
+      quantity - previousQuantity,
+      previousQuantity,
+      quantity,
+      notes || 'Stock added/updated',
+      createdBy || 'system'
+    ]);
+    
+    res.json({ 
+      success: true, 
+      inventory: result.rows[0],
+      message: existing.rows.length > 0 ? 'Inventory updated' : 'Inventory added'
+    });
+  } catch (error) {
+    console.error('Add/update inventory error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update inventory quantity (for sales/adjustments)
+app.put('/api/distributor-inventory/:distributorId/:productId', async (req, res) => {
+  try {
+    const { distributorId, productId } = req.params;
+    const { 
+      quantity, 
+      adjustment,
+      transactionType = 'adjustment',
+      reorderLevel,
+      notes,
+      createdBy,
+      referenceId
+    } = req.body;
+    
+    // Get current inventory
+    const current = await pool.query(
+      'SELECT * FROM distributor_inventory WHERE distributor_id = $1 AND product_id = $2',
+      [distributorId, productId]
+    );
+    
+    if (current.rows.length === 0) {
+      return res.status(404).json({ error: 'Inventory item not found' });
+    }
+    
+    const previousQuantity = parseInt(current.rows[0].quantity) || 0;
+    let newQuantity;
+    
+    if (adjustment !== undefined) {
+      // Relative adjustment (+/-)
+      newQuantity = previousQuantity + parseInt(adjustment);
+    } else if (quantity !== undefined) {
+      // Absolute quantity
+      newQuantity = parseInt(quantity);
+    } else {
+      return res.status(400).json({ error: 'Either quantity or adjustment is required' });
+    }
+    
+    if (newQuantity < 0) {
+      return res.status(400).json({ error: 'Quantity cannot be negative' });
+    }
+    
+    // Update inventory
+    const updateFields = ['quantity = $1', 'updated_at = CURRENT_TIMESTAMP'];
+    const values = [newQuantity];
+    let paramIndex = 2;
+    
+    if (reorderLevel !== undefined) {
+      updateFields.push(`reorder_level = $${paramIndex}`);
+      values.push(reorderLevel);
+      paramIndex++;
+    }
+    
+    if (transactionType === 'restock') {
+      updateFields.push('last_restocked = CURRENT_TIMESTAMP');
+    }
+    
+    values.push(distributorId, productId);
+    
+    const result = await pool.query(`
+      UPDATE distributor_inventory 
+      SET ${updateFields.join(', ')}
+      WHERE distributor_id = $${paramIndex} AND product_id = $${paramIndex + 1}
+      RETURNING *
+    `, values);
+    
+    // Record transaction
+    await pool.query(`
+      INSERT INTO inventory_transactions 
+      (distributor_id, product_id, transaction_type, quantity, previous_quantity, new_quantity, reference_id, notes, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, [
+      distributorId,
+      productId,
+      transactionType,
+      adjustment !== undefined ? adjustment : (newQuantity - previousQuantity),
+      previousQuantity,
+      newQuantity,
+      referenceId || null,
+      notes || `Stock ${transactionType}`,
+      createdBy || 'system'
+    ]);
+    
+    res.json({ 
+      success: true, 
+      inventory: result.rows[0],
+      previousQuantity,
+      newQuantity
+    });
+  } catch (error) {
+    console.error('Update inventory error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete inventory item
+app.delete('/api/distributor-inventory/:distributorId/:productId', async (req, res) => {
+  try {
+    const { distributorId, productId } = req.params;
+    
+    await pool.query(
+      'DELETE FROM distributor_inventory WHERE distributor_id = $1 AND product_id = $2',
+      [distributorId, productId]
+    );
+    
+    res.json({ success: true, message: 'Inventory item deleted' });
+  } catch (error) {
+    console.error('Delete inventory error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get inventory summary/stats for a distributor
+app.get('/api/distributor-inventory/:distributorId/summary', async (req, res) => {
+  try {
+    const { distributorId } = req.params;
+    
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_products,
+        SUM(quantity) as total_units,
+        SUM(quantity * COALESCE(cost_price, 0)) as total_value,
+        COUNT(CASE WHEN quantity <= reorder_level THEN 1 END) as low_stock_count,
+        COUNT(CASE WHEN quantity = 0 THEN 1 END) as out_of_stock_count
+      FROM distributor_inventory
+      WHERE distributor_id = $1
+    `, [distributorId]);
+    
+    const summary = result.rows[0];
+    
+    res.json({
+      totalProducts: parseInt(summary.total_products) || 0,
+      totalUnits: parseInt(summary.total_units) || 0,
+      totalValue: parseFloat(summary.total_value) || 0,
+      lowStockCount: parseInt(summary.low_stock_count) || 0,
+      outOfStockCount: parseInt(summary.out_of_stock_count) || 0
+    });
+  } catch (error) {
+    console.error('Get inventory summary error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk add products to inventory
+app.post('/api/distributor-inventory/:distributorId/bulk', async (req, res) => {
+  try {
+    const { distributorId } = req.params;
+    const { items, createdBy } = req.body;
+    
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'Items array is required' });
+    }
+    
+    const results = { success: 0, failed: 0, errors: [] };
+    
+    for (const item of items) {
+      try {
+        // Check if exists
+        const existing = await pool.query(
+          'SELECT quantity FROM distributor_inventory WHERE distributor_id = $1 AND product_id = $2',
+          [distributorId, item.productId]
+        );
+        
+        const previousQuantity = existing.rows.length > 0 ? parseInt(existing.rows[0].quantity) : 0;
+        
+        if (existing.rows.length > 0) {
+          await pool.query(`
+            UPDATE distributor_inventory 
+            SET quantity = $1, reorder_level = COALESCE($2, reorder_level), 
+                cost_price = COALESCE($3, cost_price), last_restocked = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE distributor_id = $4 AND product_id = $5
+          `, [item.quantity, item.reorderLevel, item.costPrice, distributorId, item.productId]);
+        } else {
+          await pool.query(`
+            INSERT INTO distributor_inventory 
+            (distributor_id, product_id, quantity, reorder_level, cost_price, last_restocked)
+            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+          `, [distributorId, item.productId, item.quantity, item.reorderLevel || 10, item.costPrice]);
+        }
+        
+        // Record transaction
+        await pool.query(`
+          INSERT INTO inventory_transactions 
+          (distributor_id, product_id, transaction_type, quantity, previous_quantity, new_quantity, notes, created_by)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          distributorId,
+          item.productId,
+          'bulk_add',
+          item.quantity - previousQuantity,
+          previousQuantity,
+          item.quantity,
+          'Bulk inventory update',
+          createdBy || 'system'
+        ]);
+        
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ productId: item.productId, error: err.message });
+      }
+    }
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Bulk add inventory error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Initialize database and start server
 const startServer = async () => {
   try {

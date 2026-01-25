@@ -330,6 +330,40 @@ export const initializeDatabase = async () => {
       )
     `);
 
+    // Distributor Inventory table - tracks each distributor's stock levels
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS distributor_inventory (
+        id SERIAL PRIMARY KEY,
+        distributor_id VARCHAR(50) NOT NULL,
+        product_id VARCHAR(50) NOT NULL,
+        quantity INTEGER DEFAULT 0,
+        reorder_level INTEGER DEFAULT 10,
+        last_restocked TIMESTAMP,
+        cost_price DECIMAL(10, 2),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(distributor_id, product_id)
+      )
+    `);
+
+    // Inventory Transactions table - tracks all stock movements
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS inventory_transactions (
+        id SERIAL PRIMARY KEY,
+        distributor_id VARCHAR(50) NOT NULL,
+        product_id VARCHAR(50) NOT NULL,
+        transaction_type VARCHAR(50) NOT NULL,
+        quantity INTEGER NOT NULL,
+        previous_quantity INTEGER,
+        new_quantity INTEGER,
+        reference_id VARCHAR(100),
+        notes TEXT,
+        created_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better performance (with IF NOT EXISTS and error handling)
     const createIndexes = async () => {
       const indexes = [
