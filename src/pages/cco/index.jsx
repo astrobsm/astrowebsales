@@ -209,15 +209,243 @@ export const CCOEscalations = () => {
   );
 };
 
-export const CCOCommunications = () => (
-  <div>
-    <h1 className="text-3xl font-display font-bold text-gray-900 mb-6">Communications</h1>
-    <div className="card p-8 text-center">
-      <MessageSquare size={48} className="mx-auto text-gray-400 mb-4" />
-      <p className="text-gray-600">Communication logs will appear here</p>
+export const CCOCommunications = () => {
+  const { user } = useAuthStore();
+  const { orders, fetchOrders } = useOrderStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [messageType, setMessageType] = useState('general');
+  const [communications, setCommunications] = useState(() => {
+    const saved = localStorage.getItem('cco_communications');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    localStorage.setItem('cco_communications', JSON.stringify(communications));
+  }, [communications]);
+
+  // Extract unique customers from orders
+  const customers = React.useMemo(() => {
+    const customerMap = new Map();
+    orders.forEach(order => {
+      const key = order.customerEmail || order.customerPhone || order.customerName;
+      if (key && !customerMap.has(key)) {
+        customerMap.set(key, {
+          id: key,
+          name: order.customerName,
+          email: order.customerEmail,
+          phone: order.customerPhone,
+          orderCount: 0,
+          lastOrder: null
+        });
+      }
+      if (customerMap.has(key)) {
+        const customer = customerMap.get(key);
+        customer.orderCount++;
+        if (!customer.lastOrder || new Date(order.createdAt) > new Date(customer.lastOrder)) {
+          customer.lastOrder = order.createdAt;
+        }
+      }
+    });
+    return Array.from(customerMap.values());
+  }, [orders]);
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.phone?.includes(searchTerm)
+  );
+
+  const customerCommunications = selectedCustomer 
+    ? communications.filter(c => c.customerId === selectedCustomer.id)
+    : [];
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedCustomer) {
+      toast.error('Please select a customer and enter a message');
+      return;
+    }
+
+    const comm = {
+      id: Date.now().toString(),
+      customerId: selectedCustomer.id,
+      customerName: selectedCustomer.name,
+      type: messageType,
+      message: newMessage,
+      direction: 'outbound',
+      staffName: user?.name || 'CCO Staff',
+      createdAt: new Date().toISOString()
+    };
+
+    setCommunications(prev => [comm, ...prev]);
+    toast.success('Message logged successfully');
+    setNewMessage('');
+  };
+
+  const getTypeColor = (type) => {
+    switch(type) {
+      case 'complaint': return 'bg-red-100 text-red-700';
+      case 'inquiry': return 'bg-blue-100 text-blue-700';
+      case 'follow-up': return 'bg-yellow-100 text-yellow-700';
+      case 'resolution': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-8 flex items-center gap-4">
+        <img src="/logo.png" alt="Bonnesante Medicals" className="w-12 h-12 object-contain" />
+        <div>
+          <h1 className="text-3xl font-display font-bold text-gray-900">Communications</h1>
+          <p className="text-gray-600">Manage customer communications and follow-ups</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="card p-4">
+          <p className="text-sm text-gray-600">Total Customers</p>
+          <p className="text-2xl font-bold">{customers.length}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600">Communications Today</p>
+          <p className="text-2xl font-bold">
+            {communications.filter(c => new Date(c.createdAt).toDateString() === new Date().toDateString()).length}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600">This Week</p>
+          <p className="text-2xl font-bold">
+            {communications.filter(c => {
+              const d = new Date(c.createdAt);
+              const now = new Date();
+              const weekAgo = new Date(now.setDate(now.getDate() - 7));
+              return d >= weekAgo;
+            }).length}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-sm text-gray-600">Total Logs</p>
+          <p className="text-2xl font-bold">{communications.length}</p>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Customer List */}
+        <div className="card p-4">
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div className="space-y-2 max-h-[500px] overflow-y-auto">
+            {filteredCustomers.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No customers found</p>
+            ) : (
+              filteredCustomers.map(customer => (
+                <div
+                  key={customer.id}
+                  onClick={() => setSelectedCustomer(customer)}
+                  className={`p-3 border rounded-lg cursor-pointer transition ${
+                    selectedCustomer?.id === customer.id 
+                      ? 'border-primary-500 bg-primary-50' 
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <p className="font-medium text-gray-900">{customer.name || 'Unknown'}</p>
+                  <p className="text-sm text-gray-600">{customer.phone || customer.email}</p>
+                  <p className="text-xs text-gray-500">{customer.orderCount} order(s)</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Communication Panel */}
+        <div className="lg:col-span-2 card p-4">
+          {selectedCustomer ? (
+            <div>
+              <div className="border-b pb-4 mb-4">
+                <h2 className="text-lg font-semibold">{selectedCustomer.name}</h2>
+                <p className="text-sm text-gray-600">{selectedCustomer.phone} | {selectedCustomer.email}</p>
+              </div>
+
+              {/* Message Form */}
+              <form onSubmit={handleSendMessage} className="mb-6">
+                <div className="flex gap-2 mb-2">
+                  <select
+                    value={messageType}
+                    onChange={(e) => setMessageType(e.target.value)}
+                    className="px-3 py-2 border rounded-lg text-sm"
+                  >
+                    <option value="general">General</option>
+                    <option value="inquiry">Inquiry</option>
+                    <option value="complaint">Complaint</option>
+                    <option value="follow-up">Follow-up</option>
+                    <option value="resolution">Resolution</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Log communication details..."
+                    rows={3}
+                    className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 resize-none"
+                  />
+                  <button type="submit" className="btn-primary self-end">
+                    <Send size={18} />
+                  </button>
+                </div>
+              </form>
+
+              {/* Communication History */}
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Communication History</h3>
+                {customerCommunications.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No communications logged</p>
+                ) : (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {customerCommunications.map(comm => (
+                      <div key={comm.id} className="border rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`px-2 py-0.5 rounded text-xs ${getTypeColor(comm.type)}`}>
+                            {comm.type}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(comm.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700">{comm.message}</p>
+                        <p className="text-xs text-gray-500 mt-2">By: {comm.staffName}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-gray-500">
+              <MessageSquare size={48} className="mb-4 opacity-50" />
+              <p>Select a customer to view and log communications</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Feedback Management Page - visible to all staff and admin
 export const CCOFeedback = () => {

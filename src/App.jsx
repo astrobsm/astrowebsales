@@ -56,10 +56,10 @@ import { WholesalerDashboard, WholesalerOrders } from './pages/wholesaler';
 import { CCODashboard, CCOEscalations, CCOCommunications, CCOFeedback } from './pages/cco';
 
 // Marketer Dashboard
-import { MarketerDashboard, MarketerLeads, MarketerReports } from './pages/marketer';
+import { MarketerDashboard, MarketerLeads, MarketerReports, MarketerFeedback } from './pages/marketer';
 
 // Sales Dashboard
-import { SalesDashboard, SalesOrders, SalesCustomers, SalesProducts } from './pages/sales';
+import { SalesDashboard, SalesOrders, SalesCustomers, SalesProducts, SalesFeedback } from './pages/sales';
 
 // Shared Components
 import StaffFeedback from './components/shared/StaffFeedback';
@@ -234,7 +234,7 @@ function App() {
           }>
             <Route index element={<MarketerDashboard />} />
             <Route path="leads" element={<MarketerLeads />} />
-            <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
+            <Route path="feedback" element={<MarketerFeedback />} />
             <Route path="reports" element={<MarketerReports />} />
           </Route>
 
@@ -248,7 +248,7 @@ function App() {
             <Route path="orders" element={<SalesOrders />} />
             <Route path="customers" element={<SalesCustomers />} />
             <Route path="products" element={<SalesProducts />} />
-            <Route path="feedback" element={<StaffFeedback canRespond={false} />} />
+            <Route path="feedback" element={<SalesFeedback />} />
           </Route>
         </Routes>
       </AutoSyncProvider>
