@@ -1665,6 +1665,29 @@ _Your Wound Care Partner_
 // AdminDistributors
 export const AdminDistributors = () => {
   const { distributors, addDistributor, updateDistributor } = useDistributorStore();
+  const { partners } = useStaffStore();
+  
+  // Combine distributors from both stores - distributorStore AND partners with type='distributor'
+  const partnerDistributors = partners.filter(p => p.type === 'distributor').map(p => ({
+    id: p.id,
+    name: p.companyName || p.contactName || p.username,
+    email: p.email,
+    phone: p.phone,
+    zone: p.territory?.[0] || '',
+    state: p.state || '',
+    address: p.address || '',
+    bankName: p.bankName || '',
+    accountNumber: p.accountNumber || '',
+    accountName: p.accountName || '',
+    source: 'partner' // Track where this came from
+  }));
+  
+  // Combine both sources, avoiding duplicates by email
+  const allDistributors = [
+    ...distributors.map(d => ({ ...d, source: 'distributor' })),
+    ...partnerDistributors.filter(pd => !distributors.some(d => d.email === pd.email))
+  ];
+  
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -1781,21 +1804,31 @@ export const AdminDistributors = () => {
         </div>
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {distributors.map((dist) => (
+        {allDistributors.map((dist) => (
           <div key={dist.id} className="card p-6">
-            <h3 className="font-semibold text-lg mb-2">{dist.name}</h3>
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-semibold text-lg">{dist.name}</h3>
+              {dist.source === 'partner' && (
+                <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full">Partner</span>
+              )}
+            </div>
             <p className="text-sm text-gray-600 mb-3">{dist.state} - {dist.zone}</p>
             <div className="space-y-1 text-sm text-gray-600">
               <p>📞 {dist.phone}</p>
               <p>✉️ {dist.email}</p>
               <p>🏦 {dist.bankName} - {dist.accountNumber}</p>
             </div>
-            <button 
-              onClick={() => openEditModal(dist)}
-              className="mt-4 w-full btn-secondary text-sm"
-            >
-              Manage
-            </button>
+            {dist.source !== 'partner' && (
+              <button 
+                onClick={() => openEditModal(dist)}
+                className="mt-4 w-full btn-secondary text-sm"
+              >
+                Manage
+              </button>
+            )}
+            {dist.source === 'partner' && (
+              <p className="mt-4 text-xs text-gray-500 text-center">Manage in Partner Management</p>
+            )}
           </div>
         ))}
       </div>
