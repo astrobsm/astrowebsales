@@ -17,6 +17,19 @@ export default async function handler(req, res) {
       
       // Convert to frontend format
       const orders = result.rows.map(row => {
+        // Helper to normalize items - ensure both name and productName exist
+        const normalizeItems = (items) => {
+          if (!items || !Array.isArray(items)) return [];
+          return items.map(item => ({
+            ...item,
+            name: item.name || item.productName || 'Unknown Item',
+            productName: item.productName || item.name || 'Unknown Item',
+            price: item.price || item.unitPrice || 0,
+            unitPrice: item.unitPrice || item.price || 0,
+            quantity: item.quantity || item.qty || 1
+          }));
+        };
+        
         // If we have the full order_data, use that
         if (row.order_data) {
           const orderData = typeof row.order_data === 'string' ? JSON.parse(row.order_data) : row.order_data;
@@ -27,10 +40,13 @@ export default async function handler(req, res) {
             customerName: orderData.customerName || row.customer_name || 'Unknown Customer',
             status: orderData.status || row.status || 'pending',
             total: orderData.total || parseFloat(row.total_amount) || 0,
+            totalAmount: orderData.totalAmount || orderData.total || parseFloat(row.total_amount) || 0,
+            items: normalizeItems(orderData.items),
             createdAt: orderData.createdAt || row.created_at
           };
         }
         // Otherwise construct from individual fields
+        const rawItems = row.items ? (typeof row.items === 'string' ? JSON.parse(row.items) : row.items) : [];
         return {
           id: row.id?.toString() || '',
           orderNumber: row.order_number || `ORD-${row.id || 'UNKNOWN'}`,
@@ -40,10 +56,11 @@ export default async function handler(req, res) {
           address: row.customer_address || '',
           state: row.customer_state || '',
           city: row.customer_city || '',
-          items: row.items ? (typeof row.items === 'string' ? JSON.parse(row.items) : row.items) : [],
+          items: normalizeItems(rawItems),
           subtotal: parseFloat(row.subtotal) || 0,
           deliveryFee: parseFloat(row.delivery_fee) || 0,
           total: parseFloat(row.total_amount) || 0,
+          totalAmount: parseFloat(row.total_amount) || 0,
           urgencyLevel: row.urgency_level || 'routine',
           deliveryMode: row.delivery_option || 'pickup',
           distributorId: row.distributor_id || null,
