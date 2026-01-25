@@ -300,6 +300,34 @@ async function migrate() {
     \`);
     console.log('✅ orders table columns verified');
 
+    // Add active column to all tables that need it
+    await client.query(\`
+      DO \$\$
+      BEGIN
+        -- Add active to staff
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'staff' AND column_name = 'active') THEN
+          ALTER TABLE staff ADD COLUMN active BOOLEAN DEFAULT true;
+        END IF;
+        -- Add active to distributors
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'distributors' AND column_name = 'active') THEN
+          ALTER TABLE distributors ADD COLUMN active BOOLEAN DEFAULT true;
+        END IF;
+        -- Add active to feedback
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'feedback' AND column_name = 'active') THEN
+          ALTER TABLE feedback ADD COLUMN active BOOLEAN DEFAULT true;
+        END IF;
+        -- Add active to settings
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'settings' AND column_name = 'active') THEN
+          ALTER TABLE settings ADD COLUMN active BOOLEAN DEFAULT true;
+        END IF;
+        -- Add active to partners
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'partners' AND column_name = 'active') THEN
+          ALTER TABLE partners ADD COLUMN active BOOLEAN DEFAULT true;
+        END IF;
+      END \$\$;
+    \`);
+    console.log('✅ active column verified for all tables');
+
     // Create staff table if not exists
     await client.query(\`
       CREATE TABLE IF NOT EXISTS staff (

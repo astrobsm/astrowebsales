@@ -1427,6 +1427,17 @@ app.delete('/api/partners/:id', async (req, res) => {
 // Full sync - get all data for cross-device sync
 app.get('/api/sync/full', async (req, res) => {
   try {
+    // Helper function to safely query a table
+    const safeQuery = async (query, fallback = []) => {
+      try {
+        const result = await pool.query(query);
+        return result;
+      } catch (err) {
+        console.warn('Query failed (table may not exist or missing column):', err.message);
+        return { rows: fallback };
+      }
+    };
+
     const [
       staffResult,
       partnersResult,
@@ -1437,19 +1448,19 @@ app.get('/api/sync/full', async (req, res) => {
       ordersResult,
       contentResult
     ] = await Promise.all([
-      pool.query('SELECT * FROM staff WHERE active = true ORDER BY created_at DESC'),
-      pool.query('SELECT * FROM partners WHERE active = true ORDER BY created_at DESC'),
-      pool.query('SELECT * FROM distributors WHERE active = true ORDER BY created_at DESC'),
-      pool.query('SELECT * FROM feedback WHERE active = true ORDER BY created_at DESC'),
-      pool.query('SELECT * FROM settings WHERE id = $1', ['global']),
-      pool.query('SELECT * FROM products WHERE active = true ORDER BY name'),
-      pool.query('SELECT * FROM orders ORDER BY created_at DESC LIMIT 100'),
-      pool.query(`
+      safeQuery('SELECT * FROM staff ORDER BY created_at DESC'),
+      safeQuery('SELECT * FROM partners ORDER BY created_at DESC'),
+      safeQuery('SELECT * FROM distributors ORDER BY name'),
+      safeQuery('SELECT * FROM feedback ORDER BY created_at DESC'),
+      safeQuery('SELECT * FROM settings WHERE id = \'global\''),
+      safeQuery('SELECT * FROM products ORDER BY name'),
+      safeQuery('SELECT * FROM orders ORDER BY created_at DESC LIMIT 100'),
+      safeQuery(`
         SELECT 
-          (SELECT json_agg(row_to_json(ca)) FROM clinical_apps ca WHERE active = true) as clinical_apps,
-          (SELECT json_agg(row_to_json(tc)) FROM training_courses tc WHERE active = true) as training,
-          (SELECT json_agg(row_to_json(o)) FROM offices o WHERE active = true) as offices,
-          (SELECT json_agg(row_to_json(d)) FROM downloads d WHERE active = true) as downloads
+          (SELECT json_agg(row_to_json(ca)) FROM clinical_apps ca) as clinical_apps,
+          (SELECT json_agg(row_to_json(tc)) FROM training_courses tc) as training,
+          (SELECT json_agg(row_to_json(o)) FROM offices o) as offices,
+          (SELECT json_agg(row_to_json(d)) FROM downloads d) as downloads
       `)
     ]);
 
@@ -1779,7 +1790,7 @@ app.post('/api/sync/full', async (req, res) => {
 
 app.get('/api/staff', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM staff WHERE active = true ORDER BY created_at DESC');
+    const result = await pool.query('SELECT * FROM staff ORDER BY created_at DESC');
     res.json(result.rows.map(row => ({
       id: row.id,
       username: row.username,
