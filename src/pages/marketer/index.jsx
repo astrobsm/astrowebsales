@@ -3,8 +3,9 @@ import {
   Users, Target, TrendingUp, Calendar, Phone, FileText, 
   Search, Plus, Edit2, Trash2, Filter, Mail, MapPin,
   DollarSign, BarChart2, PieChart, Download, RefreshCw,
-  Star, MessageCircle, Send
+  Star, MessageCircle, Send, X
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useOrderStore } from '../../store/orderStore';
 import { useAuthStore } from '../../store/authStore';
 import { useFeedbackStore } from '../../store/feedbackStore';
@@ -12,6 +13,20 @@ import toast from 'react-hot-toast';
 
 export const MarketerDashboard = () => {
   const { orders, fetchOrders } = useOrderStore();
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [callLog, setCallLog] = useState({ customerName: '', phone: '', notes: '', outcome: 'answered' });
+  const [meeting, setMeeting] = useState({ title: '', date: '', time: '', location: '', notes: '' });
+  const [callLogs, setCallLogs] = useState(() => {
+    const saved = localStorage.getItem('marketer_call_logs');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [meetings, setMeetings] = useState(() => {
+    const saved = localStorage.getItem('marketer_meetings');
+    return saved ? JSON.parse(saved) : [];
+  });
   
   // Fetch fresh data on mount and periodically
   useEffect(() => {
@@ -21,12 +36,57 @@ export const MarketerDashboard = () => {
     }, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, [fetchOrders]);
+
+  // Save to localStorage
+  useEffect(() => {
+    localStorage.setItem('marketer_call_logs', JSON.stringify(callLogs));
+  }, [callLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('marketer_meetings', JSON.stringify(meetings));
+  }, [meetings]);
   
   // Calculate real stats
   const totalOrders = orders.length;
   const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
+
+  const handleLogCall = (e) => {
+    e.preventDefault();
+    if (!callLog.customerName.trim()) {
+      toast.error('Please enter customer name');
+      return;
+    }
+    const newCall = {
+      ...callLog,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      loggedBy: user?.name || 'Marketer'
+    };
+    setCallLogs(prev => [newCall, ...prev]);
+    toast.success('Call logged successfully');
+    setCallLog({ customerName: '', phone: '', notes: '', outcome: 'answered' });
+    setShowCallModal(false);
+  };
+
+  const handleScheduleMeeting = (e) => {
+    e.preventDefault();
+    if (!meeting.title.trim() || !meeting.date) {
+      toast.error('Please enter meeting title and date');
+      return;
+    }
+    const newMeeting = {
+      ...meeting,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      scheduledBy: user?.name || 'Marketer'
+    };
+    setMeetings(prev => [newMeeting, ...prev]);
+    toast.success('Meeting scheduled successfully');
+    setMeeting({ title: '', date: '', time: '', location: '', notes: '' });
+    setShowMeetingModal(false);
+  };
   
   const stats = [
     { label: 'Total Leads (Orders)', value: totalOrders, change: 'All time', icon: Users, color: 'bg-blue-100 text-blue-600' },
@@ -147,24 +207,227 @@ export const MarketerDashboard = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
+          <button 
+            onClick={() => navigate('/marketer/leads')}
+            className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 text-center transition"
+          >
             <Users className="mx-auto mb-2 text-blue-600" size={24} />
             <p className="text-sm font-medium">Add Lead</p>
           </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
+          <button 
+            onClick={() => setShowCallModal(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 text-center transition"
+          >
             <Phone className="mx-auto mb-2 text-green-600" size={24} />
             <p className="text-sm font-medium">Log Call</p>
           </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
+          <button 
+            onClick={() => setShowMeetingModal(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 text-center transition"
+          >
             <Calendar className="mx-auto mb-2 text-purple-600" size={24} />
             <p className="text-sm font-medium">Schedule Meeting</p>
           </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
+          <button 
+            onClick={() => navigate('/marketer/reports')}
+            className="p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 text-center transition"
+          >
             <FileText className="mx-auto mb-2 text-orange-600" size={24} />
-            <p className="text-sm font-medium">Create Report</p>
+            <p className="text-sm font-medium">View Reports</p>
           </button>
         </div>
       </div>
+
+      {/* Recent Call Logs */}
+      {callLogs.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="font-semibold text-gray-900 mb-4">Recent Call Logs</h2>
+          <div className="space-y-3">
+            {callLogs.slice(0, 3).map(log => (
+              <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium">{log.customerName}</p>
+                  <p className="text-sm text-gray-500">{log.phone || 'No phone'}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`px-2 py-1 text-xs rounded ${
+                    log.outcome === 'answered' ? 'bg-green-100 text-green-700' :
+                    log.outcome === 'no-answer' ? 'bg-yellow-100 text-yellow-700' :
+                    log.outcome === 'voicemail' ? 'bg-blue-100 text-blue-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {log.outcome}
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">{new Date(log.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Meetings */}
+      {meetings.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="font-semibold text-gray-900 mb-4">Upcoming Meetings</h2>
+          <div className="space-y-3">
+            {meetings.slice(0, 3).map(mtg => (
+              <div key={mtg.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium">{mtg.title}</p>
+                  <p className="text-sm text-gray-500">{mtg.location || 'No location'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium text-primary-600">{new Date(mtg.date).toLocaleDateString()}</p>
+                  <p className="text-sm text-gray-500">{mtg.time || 'All day'}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Log Call Modal */}
+      {showCallModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h2 className="font-semibold">Log Call</h2>
+              <button onClick={() => setShowCallModal(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleLogCall} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+                <input
+                  type="text"
+                  value={callLog.customerName}
+                  onChange={(e) => setCallLog({ ...callLog, customerName: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                  placeholder="Customer name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={callLog.phone}
+                  onChange={(e) => setCallLog({ ...callLog, phone: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                  placeholder="Phone number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                <select
+                  value={callLog.outcome}
+                  onChange={(e) => setCallLog({ ...callLog, outcome: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="answered">Answered</option>
+                  <option value="no-answer">No Answer</option>
+                  <option value="voicemail">Voicemail</option>
+                  <option value="busy">Busy</option>
+                  <option value="callback">Callback Requested</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={callLog.notes}
+                  onChange={(e) => setCallLog({ ...callLog, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 resize-none"
+                  placeholder="Call notes..."
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowCallModal(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" className="flex-1 btn-primary">
+                  Log Call
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Meeting Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h2 className="font-semibold">Schedule Meeting</h2>
+              <button onClick={() => setShowMeetingModal(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleScheduleMeeting} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Title *</label>
+                <input
+                  type="text"
+                  value={meeting.title}
+                  onChange={(e) => setMeeting({ ...meeting, title: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                  placeholder="Meeting title"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                  <input
+                    type="date"
+                    value={meeting.date}
+                    onChange={(e) => setMeeting({ ...meeting, date: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={meeting.time}
+                    onChange={(e) => setMeeting({ ...meeting, time: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input
+                  type="text"
+                  value={meeting.location}
+                  onChange={(e) => setMeeting({ ...meeting, location: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                  placeholder="Meeting location"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={meeting.notes}
+                  onChange={(e) => setMeeting({ ...meeting, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 resize-none"
+                  placeholder="Meeting notes..."
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowMeetingModal(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" className="flex-1 btn-primary">
+                  Schedule
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
