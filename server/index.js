@@ -1422,6 +1422,61 @@ app.delete('/api/partners/:id', async (req, res) => {
   }
 });
 
+// Partner login
+app.post('/api/partners/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+    
+    const result = await pool.query(
+      'SELECT * FROM partners WHERE email = $1 AND active = true',
+      [email]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+    
+    const partner = result.rows[0];
+    
+    if (partner.password !== password) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+    
+    if (partner.status !== 'active') {
+      return res.status(401).json({ success: false, error: 'Account is inactive' });
+    }
+    
+    // Update last login
+    await pool.query('UPDATE partners SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [partner.id]);
+    
+    // Return user data
+    res.json({
+      success: true,
+      user: {
+        id: partner.id,
+        name: partner.contact_name || partner.company_name,
+        companyName: partner.company_name,
+        role: partner.type || 'distributor',
+        email: partner.email,
+        phone: partner.phone,
+        state: partner.state,
+        territory: partner.territory || [],
+        bankName: partner.bank_name,
+        accountNumber: partner.account_number,
+        accountName: partner.account_name,
+        mustChangePassword: partner.must_change_password
+      }
+    });
+  } catch (error) {
+    console.error('Partner login error:', error);
+    res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
 // ==================== COMPREHENSIVE SYNC API ====================
 
 // Full sync - get all data for cross-device sync

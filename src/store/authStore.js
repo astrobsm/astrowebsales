@@ -124,7 +124,7 @@ export const useAuthStore = create(
             return { success: true, user };
           }
           
-          // Check partner credentials from staffStore (partners table)
+          // Check partner credentials from local staffStore (partners table)
           const partner = staffStore.partners?.find(p => p.email === email);
           if (partner && partner.password === password && partner.active !== false && partner.status === 'active') {
             const user = {
@@ -151,6 +151,32 @@ export const useAuthStore = create(
             
             useSyncStore.getState().notifyStateChange('auth', { action: 'login', user });
             return { success: true, user };
+          }
+          
+          // Try server-side partner login as fallback
+          try {
+            const response = await fetch('/api/partners/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.user) {
+              const sessionId = `${(data.user.role || 'PARTNER').toUpperCase()}-${Date.now()}`;
+              set({
+                user: data.user,
+                isAuthenticated: true,
+                sessionId,
+                role: data.user.role || 'distributor'
+              });
+              
+              useSyncStore.getState().notifyStateChange('auth', { action: 'login', user: data.user });
+              return { success: true, user: data.user };
+            }
+          } catch (apiError) {
+            console.error('Partner API login error:', apiError);
           }
           
           return { success: false, error: 'Invalid credentials' };
