@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, Upload, CreditCard, Truck, MapPin } from 'lucide-react';
+import { ArrowRight, Upload, CreditCard, Truck, MapPin, MessageCircle } from 'lucide-react';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useOrderStore, DELIVERY_MODES, URGENCY_LEVELS } from '../../store/orderStore';
+import { useDistributorStore } from '../../store/distributorStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import toast from 'react-hot-toast';
 
@@ -12,6 +13,7 @@ const RetailCheckout = () => {
   const { user, isAuthenticated } = useAuthStore();
   const { items, getCartTotal, clearCart, recalculateCart } = useCartStore();
   const { createOrder } = useOrderStore();
+  const { getDistributorForState } = useDistributorStore();
   const { notifyNewOrder } = useNotificationStore();
 
   const [deliveryMode, setDeliveryMode] = useState('pickup');
@@ -19,6 +21,9 @@ const RetailCheckout = () => {
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [notes, setNotes] = useState('');
   const [paymentProof, setPaymentProof] = useState(null);
+
+  // Get distributor for customer's state
+  const stateDistributor = user?.state ? getDistributorForState(user.state) : null;
 
   React.useEffect(() => {
     if (!isAuthenticated || items.length === 0) {
@@ -40,6 +45,9 @@ const RetailCheckout = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // Use state-based distributor
+    const distributor = stateDistributor || user?.assignedDistributor;
+
     const order = createOrder({
       customerId: user.id,
       customerName: user.name,
@@ -47,8 +55,12 @@ const RetailCheckout = () => {
       customerEmail: user.email,
       customerAddress: user.address,
       customerState: user.state,
-      distributorId: user.assignedDistributor.id,
-      distributorName: user.assignedDistributor.name,
+      distributorId: distributor?.id,
+      distributorName: distributor?.name,
+      distributorPhone: distributor?.phone,
+      distributorBankName: distributor?.bankName,
+      distributorAccountNumber: distributor?.accountNumber,
+      distributorAccountName: distributor?.accountName,
       items: items,
       subtotal,
       deliveryMode,
@@ -164,12 +176,39 @@ const RetailCheckout = () => {
                 <CreditCard size={20} className="mr-2 text-primary-600" />
                 Payment Information
               </h3>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-yellow-800">
-                  Please transfer to: {user?.assignedDistributor?.bankName} - 
-                  {user?.assignedDistributor?.accountNumber} ({user?.assignedDistributor?.accountName})
-                </p>
+              
+              {/* Distributor Bank Details */}
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-4">
+                <h4 className="font-semibold text-primary-900 mb-2">Bank Transfer Details</h4>
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-gray-600">Bank:</span> <span className="font-medium text-primary-800">{stateDistributor?.bankName || 'N/A'}</span></p>
+                  <p><span className="text-gray-600">Account Number:</span> <span className="font-bold text-primary-900">{stateDistributor?.accountNumber || 'N/A'}</span></p>
+                  <p><span className="text-gray-600">Account Name:</span> <span className="font-medium text-primary-800">{stateDistributor?.accountName || 'N/A'}</span></p>
+                </div>
               </div>
+
+              {/* WhatsApp Instruction */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <MessageCircle className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <h4 className="font-semibold text-green-900 mb-1">Payment Confirmation</h4>
+                    <p className="text-sm text-green-800">
+                      After making payment, please send your payment proof/receipt to our distributor on WhatsApp:
+                    </p>
+                    <a 
+                      href={`https://wa.me/${stateDistributor?.phone?.replace(/[^0-9]/g, '')}?text=Hi, I just made a payment for my order. Here is my payment proof.`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                    >
+                      <MessageCircle size={16} />
+                      {stateDistributor?.phone || 'Contact Distributor'}
+                    </a>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Order Notes (Optional)
