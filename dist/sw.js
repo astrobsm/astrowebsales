@@ -1,6 +1,6 @@
-const CACHE_NAME = 'bonnesante-v8';
-const STATIC_CACHE = 'bonnesante-static-v8';
-const DYNAMIC_CACHE = 'bonnesante-dynamic-v8';
+const CACHE_NAME = 'bonnesante-v9';
+const STATIC_CACHE = 'bonnesante-static-v9';
+const DYNAMIC_CACHE = 'bonnesante-dynamic-v9';
 
 // Essential static assets
 const STATIC_ASSETS = [
@@ -74,12 +74,20 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful navigation responses
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(DYNAMIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
+          // Only cache successful, basic responses (not opaque)
+          if (response.ok && response.type === 'basic') {
+            try {
+              const responseClone = response.clone();
+              caches.open(DYNAMIC_CACHE).then((cache) => {
+                cache.put(request, responseClone).catch((err) => {
+                  console.log('[ServiceWorker] Cache put failed:', err.message);
+                });
+              }).catch((err) => {
+                console.log('[ServiceWorker] Cache open failed:', err.message);
+              });
+            } catch (err) {
+              console.log('[ServiceWorker] Clone failed:', err.message);
+            }
           }
           return response;
         })
@@ -122,11 +130,20 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response.status === 200 && response.type === 'basic') {
-          const responseClone = response.clone();
-          caches.open(DYNAMIC_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
+        // Only cache successful, basic responses (not opaque or error responses)
+        if (response.ok && response.type === 'basic') {
+          try {
+            const responseClone = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => {
+              cache.put(request, responseClone).catch((err) => {
+                console.log('[ServiceWorker] Dynamic cache put failed:', err.message);
+              });
+            }).catch((err) => {
+              console.log('[ServiceWorker] Dynamic cache open failed:', err.message);
+            });
+          } catch (err) {
+            console.log('[ServiceWorker] Clone failed:', err.message);
+          }
         }
         return response;
       })
