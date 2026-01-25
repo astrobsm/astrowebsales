@@ -43,7 +43,7 @@ export const NIGERIAN_STATES = [
   { name: 'Zamfara', zone: 'North West' }
 ];
 
-// Mock Distributors - Now empty, use partners from staffStore instead
+// Distributors are managed through Partners in staffStore
 export const DISTRIBUTORS = [];
 
 export const useDistributorStore = create(

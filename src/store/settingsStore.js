@@ -112,11 +112,14 @@ export const useSettingsStore = create(
 
       // SEO Settings
       seo: {
-        metaTitle: 'Bonnesante Medicals - Premium Wound Care Solutions',
-        metaDescription: 'Leading provider of wound care products and medical supplies in Nigeria. Professional grade solutions for healthcare providers.',
-        keywords: 'wound care, medical supplies, bandages, dressings, Nigeria, healthcare',
+        metaTitle: 'Bonnesante Medicals | Nigeria\'s #1 Wound Care & Medical Supplies',
+        metaDescription: 'Buy premium wound care products, honey-based dressings, diabetic foot care supplies & medical equipment in Nigeria. Free delivery. Trusted by hospitals & pharmacies nationwide. Call +234 707 679 3866.',
+        keywords: 'wound care Nigeria, medical supplies Lagos, buy bandages online, diabetic wound treatment, honey dressing Nigeria, pressure ulcer products, burn treatment supplies, hospital medical supplies, Bonnesante Medicals, wound care products Abuja, medical equipment Enugu, healthcare supplies Port Harcourt, buy dressings online Nigeria, wound healing products, chronic wound care, surgical supplies Nigeria',
         googleAnalyticsId: '',
-        facebookPixelId: ''
+        facebookPixelId: '',
+        ogImage: '/logo.png',
+        twitterHandle: '@BonnesanteMed',
+        canonicalUrl: 'https://bonnesantemedicals.com'
       },
 
       // Business Hours

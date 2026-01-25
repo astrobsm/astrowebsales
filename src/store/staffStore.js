@@ -67,7 +67,7 @@ const generateUsername = (name, existingUsernames) => {
   return username;
 };
 
-// Initial demo staff
+// System administrator account (required for admin access)
 const INITIAL_STAFF = [
   {
     id: 'staff-admin-001',

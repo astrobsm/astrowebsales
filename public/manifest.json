@@ -1,12 +1,13 @@
 {
-  "name": "Bonnesante Medicals - WebSales Platform",
+  "name": "Bonnesante Medicals - Nigeria's #1 Wound Care & Medical Supplies",
   "short_name": "Bonnesante",
-  "description": "Wound care distribution platform by Bonnesante Medicals - Order products, access education, and manage your business",
+  "description": "Buy premium wound care products, honey-based dressings, diabetic foot care supplies & medical equipment in Nigeria. Trusted by hospitals & pharmacies nationwide.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1e40af",
   "theme_color": "#1e40af",
   "orientation": "portrait-primary",
+  "lang": "en-NG",
   "icons": [
     {
       "src": "/logo.png",
