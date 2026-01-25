@@ -152,7 +152,11 @@ export const useAuthStore = create(
           
           // Check partner credentials from local staffStore (partners table)
           const partner = staffStore.partners?.find(p => p.email === email);
-          if (partner && partner.password === password && partner.active !== false && partner.status === 'active') {
+          console.log('🔍 Partner lookup:', { email, found: !!partner, partnerData: partner });
+          
+          if (partner && partner.password === password && 
+              (partner.active === true || partner.active === undefined) && 
+              partner.status === 'active') {
             const user = {
               id: partner.id,
               name: partner.contactName || partner.contact_name || partner.companyName || partner.company_name,
@@ -167,6 +171,7 @@ export const useAuthStore = create(
               accountName: partner.accountName || partner.account_name
             };
             
+            console.log('✅ Partner login successful via local store');
             const sessionId = `${(partner.type || 'PARTNER').toUpperCase()}-${Date.now()}`;
             set({
               user,
@@ -180,6 +185,7 @@ export const useAuthStore = create(
           }
           
           // Try server-side partner login as fallback
+          console.log('🔄 Trying server-side partner login...');
           try {
             const response = await fetch('/api/partners/login', {
               method: 'POST',
@@ -188,8 +194,10 @@ export const useAuthStore = create(
             });
             
             const data = await response.json();
+            console.log('📡 Partner login API response:', data);
             
             if (data.success && data.user) {
+              console.log('✅ Partner login successful via API');
               const sessionId = `${(data.user.role || 'PARTNER').toUpperCase()}-${Date.now()}`;
               set({
                 user: data.user,
