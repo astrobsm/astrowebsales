@@ -1,10 +1,12 @@
 // WebSocket Sync Service for real-time cross-device synchronization
 import { io } from 'socket.io-client';
 
-// In production, use same origin (empty string). In development, use localhost:5000
-// Check if we're in production using MODE or PROD environment variable
+// WebSocket URL configuration
+// In production, we need to connect to Railway backend for WebSocket support
+// Vercel doesn't support WebSockets, so we must use the Railway server
 const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD === true;
-const SOCKET_URL = isProduction ? '' : 'http://localhost:5000';
+const RAILWAY_WS_URL = import.meta.env.VITE_RAILWAY_WS_URL || 'https://astrowebsales-api.up.railway.app';
+const SOCKET_URL = isProduction ? RAILWAY_WS_URL : 'http://localhost:5000';
 
 class SyncService {
   constructor() {
@@ -25,16 +27,28 @@ class SyncService {
     this.deviceId = deviceId;
 
     return new Promise((resolve, reject) => {
+      // Set a timeout to prevent hanging
+      const connectionTimeout = setTimeout(() => {
+        if (!this.isConnected) {
+          console.warn('⏱️ WebSocket connection timeout - continuing without real-time sync');
+          reject(new Error('WebSocket connection timeout'));
+        }
+      }, 15000);
+
+      console.log(`🔄 Connecting to WebSocket server: ${SOCKET_URL || 'same-origin'}`);
+      
       this.socket = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
         timeout: 10000,
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: 1000,
+        forceNew: true,
       });
 
       this.socket.on('connect', () => {
-        console.log('🔌 WebSocket connected');
+        clearTimeout(connectionTimeout);
+        console.log('🔌 WebSocket connected to:', SOCKET_URL || 'same-origin');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         
