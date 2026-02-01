@@ -165,9 +165,10 @@ export const useOrderStore = create(
         },
         
         // Update order status
-        updateOrderStatus: (orderId, status, note = '') => {
+        updateOrderStatus: async (orderId, status, note = '') => {
           const now = new Date().toISOString();
           
+          // Optimistically update local state first for responsiveness
           set((state) => ({
             orders: state.orders.map(order => {
               if (order.id !== orderId) return order;
@@ -176,7 +177,7 @@ export const useOrderStore = create(
                 status,
                 updatedAt: now,
                 timeline: [
-                  ...order.timeline,
+                  ...(order.timeline || []),
                   { status, timestamp: now, note }
                 ]
               };
@@ -197,21 +198,35 @@ export const useOrderStore = create(
             })
           }));
           
-          useSyncStore.getState().notifyStateChange('orders', { 
-            action: 'statusUpdate', 
-            orderId, 
-            status 
-          });
+          // Persist to database
+          try {
+            const result = await ordersApi.updateStatus(orderId, status, note);
+            console.log(`✅ Order ${orderId} status updated to ${status} in database`);
+            
+            // Notify other devices
+            useSyncStore.getState().notifyStateChange('orders', { 
+              action: 'statusUpdate', 
+              orderId, 
+              status 
+            });
+            
+            return result;
+          } catch (error) {
+            console.error(`❌ Failed to update order status in database:`, error);
+            // Revert local state on failure - refetch from server
+            get().fetchOrders();
+            throw error;
+          }
         },
         
         // Acknowledge order (distributor)
-        acknowledgeOrder: (orderId, note = 'Order acknowledged by distributor') => {
-          get().updateOrderStatus(orderId, ORDER_STATUS.ACKNOWLEDGED, note);
+        acknowledgeOrder: async (orderId, note = 'Order acknowledged by distributor') => {
+          return get().updateOrderStatus(orderId, ORDER_STATUS.ACKNOWLEDGED, note);
         },
         
         // Confirm payment
-        confirmPayment: (orderId, note = 'Payment confirmed') => {
-          get().updateOrderStatus(orderId, ORDER_STATUS.PAYMENT_CONFIRMED, note);
+        confirmPayment: async (orderId, note = 'Payment confirmed') => {
+          return get().updateOrderStatus(orderId, ORDER_STATUS.PAYMENT_CONFIRMED, note);
         },
         
         // Schedule escalation check

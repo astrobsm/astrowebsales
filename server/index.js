@@ -785,6 +785,74 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// Update order status
+app.put('/api/orders/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, note } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+    
+    // Get current order to update order_data
+    const currentOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    
+    if (currentOrder.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    const row = currentOrder.rows[0];
+    let orderData = row.order_data ? 
+      (typeof row.order_data === 'string' ? JSON.parse(row.order_data) : row.order_data) : {};
+    
+    // Update status in order_data
+    orderData.status = status;
+    orderData.updatedAt = new Date().toISOString();
+    
+    // Add to timeline
+    if (!orderData.timeline) orderData.timeline = [];
+    orderData.timeline.push({
+      status,
+      timestamp: new Date().toISOString(),
+      note: note || `Status updated to ${status}`
+    });
+    
+    // Set specific timestamps
+    if (status === 'acknowledged') {
+      orderData.acknowledgedAt = new Date().toISOString();
+    } else if (status === 'payment_confirmed') {
+      orderData.paymentConfirmedAt = new Date().toISOString();
+    } else if (status === 'dispatched') {
+      orderData.dispatchedAt = new Date().toISOString();
+    } else if (status === 'delivered') {
+      orderData.deliveredAt = new Date().toISOString();
+    }
+    
+    // Update database
+    const result = await pool.query(`
+      UPDATE orders 
+      SET status = $1, order_data = $2, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $3 
+      RETURNING *
+    `, [status, JSON.stringify(orderData), id]);
+    
+    console.log(`📦 Order ${id} status updated to: ${status}`);
+    
+    // Broadcast to connected clients for real-time sync
+    io.emit('order-status-update', { orderId: id, status, timestamp: new Date().toISOString() });
+    
+    res.json({ 
+      success: true, 
+      order: { ...orderData, id: result.rows[0].id },
+      message: `Order status updated to ${status}` 
+    });
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== DISTRIBUTOR INVENTORY API ====================
 
 // Get inventory for a distributor

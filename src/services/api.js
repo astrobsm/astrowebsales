@@ -122,9 +122,9 @@ export const ordersApi = {
   }),
   
   // Update order status
-  updateStatus: (id, status) => apiRequest(`/orders/${id}/status`, {
+  updateStatus: (id, status, note = '') => apiRequest(`/orders/${id}/status`, {
     method: 'PUT',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, note }),
   }),
   
   // Delete order (admin only)

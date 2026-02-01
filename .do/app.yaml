@@ -1,0 +1,43 @@
+name: astrowebsales
+region: nyc
+services:
+  - name: api
+    github:
+      repo: astrobsm/astrowebsales
+      branch: main
+      deploy_on_push: true
+    build_command: npm ci && npm run build
+    run_command: npm start
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 5000
+    routes:
+      - path: /
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        scope: RUN_TIME
+        type: SECRET
+      - key: DB_USER
+        scope: RUN_TIME
+        type: SECRET
+      - key: DB_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+      - key: DB_NAME
+        scope: RUN_TIME
+        type: SECRET
+      - key: DB_PORT
+        scope: RUN_TIME
+        type: SECRET
+      - key: DB_SSL
+        value: "true"
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 10
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3

@@ -2,11 +2,10 @@
 import { io } from 'socket.io-client';
 
 // WebSocket URL configuration
-// In production, we need to connect to Railway backend for WebSocket support
-// Vercel doesn't support WebSockets, so we must use the Railway server
+// Frontend is served from the same backend server, so use same-origin (empty string)
+// This allows WebSocket to connect to the same server that serves the frontend
 const isProduction = import.meta.env.MODE === 'production' || import.meta.env.PROD === true;
-const RAILWAY_WS_URL = import.meta.env.VITE_RAILWAY_WS_URL || 'https://astrowebsales-api.up.railway.app';
-const SOCKET_URL = isProduction ? RAILWAY_WS_URL : 'http://localhost:5000';
+const SOCKET_URL = isProduction ? '' : 'http://localhost:5000';
 
 class SyncService {
   constructor() {
