@@ -16,6 +16,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 
 // PWA Components
 import InstallPrompt from './components/shared/InstallPrompt';
+import PushNotificationManager from './components/shared/PushNotificationManager';
 
 // Public Pages
 import Home from './pages/public/Home';
@@ -140,6 +141,9 @@ function App() {
       <AutoSyncProvider>
         {/* PWA Install Prompt */}
         <InstallPrompt />
+        
+        {/* Push Notification Manager */}
+        <PushNotificationManager />
         
         {/* Pending Order Voice Alerts (every 15 minutes) */}
         <PendingOrderAlertManager />

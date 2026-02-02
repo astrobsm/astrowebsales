@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
+import webpush from 'web-push';
 import pool, { initializeDatabase, testConnection, getConnectionStatus } from './database.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,17 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// VAPID keys for Web Push notifications
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BCeKP36vepti2QWWnJLEurwXZRwmRRmyeEm0FnC7FyerhDqvVlTGySDbBBkfiAmL0I3lNdlHF2UOGaHtz1BzoDs';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'a1DMOmh-zUXJA06ZpEibtCLU0Csy5kzLBeE2DIwXJYA';
+const VAPID_EMAIL = process.env.VAPID_EMAIL || 'mailto:admin@bonnesantemedicals.com';
+
+// Configure web-push
+webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+
+// In-memory store for push subscriptions (will also persist to DB)
+const pushSubscriptions = new Map();
 
 // Socket.io for real-time cross-device sync
 const io = new SocketServer(httpServer, {
@@ -726,6 +738,27 @@ app.post('/api/orders', async (req, res) => {
        customer_state, customer_city, JSON.stringify(items), subtotal, delivery_fee, total_amount,
        urgency_level, delivery_option, distributor_id, distributor_name, status, JSON.stringify(orderData)]
     );
+
+    // Send push notification for new order
+    const formattedTotal = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(total_amount);
+    sendPushNotificationToAll({
+      title: '🛒 New Order Received!',
+      body: `Order ${order_number} from ${customer_name} - ${formattedTotal}`,
+      icon: '/logo.png',
+      badge: '/logo.png',
+      tag: `order-${order_number}`,
+      url: '/admin/orders',
+      data: { 
+        type: 'new-order',
+        orderNumber: order_number,
+        orderId: order_id,
+        customerName: customer_name,
+        total: total_amount
+      }
+    }, { userRole: 'admin' }).catch(err => console.error('Push notification failed:', err));
+
+    // Also notify via WebSocket
+    io.emit('new-order', { orderNumber: order_number, customerName: customer_name, total: total_amount });
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -2639,6 +2672,192 @@ app.post('/api/settings', async (req, res) => {
     console.error('Save settings error:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// ==================== PUSH NOTIFICATIONS API ====================
+
+// Helper function to send push notification to all subscribers
+async function sendPushNotificationToAll(notification, filter = {}) {
+  const results = { sent: 0, failed: 0, errors: [] };
+  
+  // Get subscriptions from database
+  try {
+    let query = 'SELECT * FROM push_subscriptions WHERE active = true';
+    const params = [];
+    
+    if (filter.userRole) {
+      params.push(filter.userRole);
+      query += ` AND user_role = $${params.length}`;
+    }
+    
+    const dbResult = await pool.query(query, params);
+    
+    for (const row of dbResult.rows) {
+      try {
+        const subscription = typeof row.subscription === 'string' 
+          ? JSON.parse(row.subscription) 
+          : row.subscription;
+        
+        await webpush.sendNotification(subscription, JSON.stringify(notification));
+        results.sent++;
+        console.log(`📱 Push sent to device: ${row.device_id}`);
+      } catch (error) {
+        results.failed++;
+        results.errors.push({ deviceId: row.device_id, error: error.message });
+        
+        // If subscription is invalid, mark as inactive
+        if (error.statusCode === 404 || error.statusCode === 410) {
+          await pool.query('UPDATE push_subscriptions SET active = false WHERE id = $1', [row.id]);
+          console.log(`❌ Subscription expired, marked inactive: ${row.device_id}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error sending push notifications:', error);
+  }
+  
+  // Also send to in-memory subscriptions (for immediate subscribers not yet in DB)
+  for (const [endpoint, subData] of pushSubscriptions.entries()) {
+    if (filter.userRole && subData.userRole !== filter.userRole) continue;
+    
+    try {
+      await webpush.sendNotification(subData.subscription, JSON.stringify(notification));
+      results.sent++;
+    } catch (error) {
+      results.failed++;
+      if (error.statusCode === 404 || error.statusCode === 410) {
+        pushSubscriptions.delete(endpoint);
+      }
+    }
+  }
+  
+  return results;
+}
+
+// Subscribe to push notifications
+app.post('/api/push/subscribe', async (req, res) => {
+  try {
+    const { subscription, deviceId, userRole, userId, userAgent } = req.body;
+    
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: 'Invalid subscription' });
+    }
+    
+    // Store in memory
+    pushSubscriptions.set(subscription.endpoint, {
+      subscription,
+      deviceId,
+      userRole: userRole || 'user',
+      userId,
+      userAgent,
+      createdAt: new Date()
+    });
+    
+    // Store in database
+    await pool.query(`
+      INSERT INTO push_subscriptions (device_id, endpoint, subscription, user_role, user_id, user_agent, active)
+      VALUES ($1, $2, $3, $4, $5, $6, true)
+      ON CONFLICT (endpoint) DO UPDATE SET
+        subscription = EXCLUDED.subscription,
+        device_id = EXCLUDED.device_id,
+        user_role = EXCLUDED.user_role,
+        user_id = EXCLUDED.user_id,
+        active = true,
+        updated_at = CURRENT_TIMESTAMP
+    `, [deviceId, subscription.endpoint, JSON.stringify(subscription), userRole || 'user', userId, userAgent]);
+    
+    console.log(`📱 Push subscription saved for device: ${deviceId}, role: ${userRole}`);
+    
+    res.json({ success: true, message: 'Subscription saved' });
+  } catch (error) {
+    console.error('Push subscribe error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unsubscribe from push notifications
+app.post('/api/push/unsubscribe', async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Endpoint required' });
+    }
+    
+    // Remove from memory
+    pushSubscriptions.delete(endpoint);
+    
+    // Mark as inactive in database
+    await pool.query('UPDATE push_subscriptions SET active = false WHERE endpoint = $1', [endpoint]);
+    
+    console.log('📴 Push subscription removed');
+    res.json({ success: true, message: 'Unsubscribed' });
+  } catch (error) {
+    console.error('Push unsubscribe error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send test notification
+app.post('/api/push/test', async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    
+    const notification = {
+      title: '🔔 Bonnesante Notification Test',
+      body: 'Push notifications are working! You will receive order alerts even when the app is closed.',
+      icon: '/logo.png',
+      badge: '/logo.png',
+      tag: 'test-notification',
+      url: '/',
+      data: { type: 'test', timestamp: Date.now() }
+    };
+    
+    const results = await sendPushNotificationToAll(notification, 
+      deviceId ? { deviceId } : {}
+    );
+    
+    console.log(`📱 Test notification sent: ${results.sent} success, ${results.failed} failed`);
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Test notification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send notification to specific roles (admin endpoint)
+app.post('/api/push/send', async (req, res) => {
+  try {
+    const { title, body, url, userRole, data } = req.body;
+    
+    if (!title || !body) {
+      return res.status(400).json({ error: 'Title and body required' });
+    }
+    
+    const notification = {
+      title,
+      body,
+      icon: '/logo.png',
+      badge: '/logo.png',
+      tag: `notification-${Date.now()}`,
+      url: url || '/',
+      data: data || {}
+    };
+    
+    const results = await sendPushNotificationToAll(notification, 
+      userRole ? { userRole } : {}
+    );
+    
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Send notification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get VAPID public key (for client subscription)
+app.get('/api/push/vapid-key', (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
 });
 
 // ==================== DATABASE STATUS API ====================

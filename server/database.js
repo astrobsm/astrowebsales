@@ -364,6 +364,22 @@ export const initializeDatabase = async () => {
       )
     `);
 
+    // Push Subscriptions table - for web push notifications
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id SERIAL PRIMARY KEY,
+        device_id VARCHAR(100),
+        endpoint TEXT UNIQUE NOT NULL,
+        subscription JSONB NOT NULL,
+        user_role VARCHAR(50) DEFAULT 'user',
+        user_id VARCHAR(100),
+        user_agent TEXT,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better performance (with IF NOT EXISTS and error handling)
     const createIndexes = async () => {
       const indexes = [
